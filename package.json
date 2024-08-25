@@ -13,7 +13,7 @@
   },
   "scripts": {
     "start": "node index.js",
-    "build": "echo 'Nothing to build for this API project'"
+    "build": "tsc"
   },
   "engines": {
     "node": "20"
