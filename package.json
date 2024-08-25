@@ -10,6 +10,10 @@
     "firebase-admin": "^11.3.0",
     "firebase-functions": "^5.1.0"
   },
+  "scripts": {
+    "start": "node index.js",
+    "build": "echo 'Nothing to build for this API project'"
+  },
   "engines": {
     "node": "20"
   }
