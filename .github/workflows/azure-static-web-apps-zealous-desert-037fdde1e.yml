@@ -19,28 +19,19 @@ jobs:
         with:
           submodules: true
           lfs: false
+      - name: Set up Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: '16' # Ou la version de Node.js que vous utilisez
+      - name: Install dependencies
+        run: npm install
       - name: Build And Deploy
         id: builddeploy
         uses: Azure/static-web-apps-deploy@v1
         with:
-          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_ZEALOUS_DESERT_037FDDE1E }}
-          repo_token: ${{ secrets.GITHUB_TOKEN }} # Used for Github integrations (i.e. PR comments)
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }} # Utilisé pour les intégrations GitHub (i.e. commentaires de PR)
           action: "upload"
-          ###### Repository/Build Configurations - These values can be configured to match your app requirements. ######
-          # For more information regarding Static Web App workflow configurations, please visit: https://aka.ms/swaworkflowconfig
-          app_location: "/" # Path to your application source code; root in this example
-          api_location: "/chatbot" # Path to your API source code
-          output_location: "" # No build output directory needed
-          ###### End of Repository/Build Configurations ######
-
-  close_pull_request_job:
-    if: github.event_name == 'pull_request' && github.event.action == 'closed'
-    runs-on: ubuntu-latest
-    name: Close Pull Request Job
-    steps:
-      - name: Close Pull Request
-        id: closepullrequest
-        uses: Azure/static-web-apps-deploy@v1
-        with:
-          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_ZEALOUS_DESERT_037FDDE1E }}
-          action: "close"
+          app_location: "/" # Chemin vers le code source de l'application, utilisez "/" si c'est à la racine
+          api_location: "/chatbot" # Chemin vers le code source de l'API
+          output_location: "api" # Répertoire de sortie après la construction de l'API
