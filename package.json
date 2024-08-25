@@ -13,7 +13,7 @@
   },
   "scripts": {
     "start": "node index.js",
-    "build": "tsc"
+    "build": "yarn install"
   },
   "engines": {
     "node": "20"
