@@ -1,26 +1,18 @@
-// Importer les modules nécessaires
+require('dotenv').config();
 const express = require('express');
 const bodyParser = require('body-parser');
-const { handleChatbotMessage } = require('./path/to/your/controller/file'); // Remplacez par le chemin correct de votre contrôleur
+const { handleChatbotMessage } = require('./controllers/chatbotController');
 
-// Initialiser l'application Express
 const app = express();
-
-// Middleware pour parser le corps des requêtes JSON
-app.use(bodyParser.json());
-
-// Définir le port d'écoute. Azure fournit généralement un port via la variable d'environnement PORT.
 const PORT = process.env.PORT || 3000;
 
-// Définir la route pour votre API qui utilise le contrôleur handleChatbotMessage
-app.post('/api/chatbot', handleChatbotMessage);
+// Middleware pour parser les JSON dans les requêtes HTTP
+app.use(bodyParser.json());
 
-// Route de base pour vérifier que le serveur fonctionne
-app.get('/', (req, res) => {
-    res.send('Le serveur API Node.js fonctionne!');
-});
+// Route pour gérer les messages du chatbot
+app.post('/chatbot', handleChatbotMessage);
 
-// Démarrer le serveur et écouter sur le port défini
+// Démarrer le serveur
 app.listen(PORT, () => {
-    console.log(`Serveur en cours d'exécution sur le port ${PORT}`);
+    console.log(`Serveur démarré sur http://localhost:${PORT}`);
 });
