@@ -86,8 +86,11 @@ const handleChatbotMessage = async (req, res) => {
         const messageHistory = Array.isArray(previousMessages) ? previousMessages : [];
         console.log("Historique des messages récupéré avec succès:", messageHistory);
 
-        // Ajout du nouveau message utilisateur à l'historique
-        const updatedMessageHistory = [...messageHistory, { role: 'user', content: message }];
+        // Vérifier et ajouter le nouveau message utilisateur à l'historique uniquement si ce n'est pas déjà le dernier
+        let updatedMessageHistory = [...messageHistory];
+        if (messageHistory.length === 0 || messageHistory[messageHistory.length - 1].content !== message) {
+            updatedMessageHistory.push({ role: 'user', content: message });
+        }
         console.log("Historique des messages mis à jour avec le nouveau message utilisateur:", updatedMessageHistory);
 
         // Envoi des messages à l'API OpenAI
