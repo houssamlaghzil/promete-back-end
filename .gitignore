@@ -1,6 +1,7 @@
 node_modules/
 *.local
 .env
+python
 serviceAccountKey.json
 
 certificates/
