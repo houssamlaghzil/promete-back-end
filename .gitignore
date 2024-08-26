@@ -7,6 +7,8 @@ serviceAccountKey.json
 
 certificates/
 
+~/mon_dossier/promete-back-end/-e-pm2.json
+
 -a
 
 -i
