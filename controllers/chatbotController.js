@@ -27,7 +27,7 @@ const estimateTokens = async (message) => {
                         role: process.env.SYSTEM_ROLE_ESTIMATE || 'system',
                         content: process.env.SYSTEM_CONTENT_ESTIMATE || 'Please estimate the number of tokens.'
                     },
-                    { role: 'user', content: message },
+                    {role: 'user', content: message},
                 ],
                 max_tokens: 50,
                 temperature: 0.0,
@@ -49,20 +49,49 @@ const estimateTokens = async (message) => {
 };
 
 const handleChatbotMessage = async (req, res) => {
-    const { message, previousMessages } = req.body;
+    const {message, previousMessages} = req.body;
 
     try {
         const estimatedTokens = await estimateTokens(message);
         logToFirebase(`Nombre de tokens estimé à utiliser: ${estimatedTokens}`);
+        const SysteMessageFR = {
+            role: 'system',
+            content: "Quoi qu'il arrive tu répondras toujours en français et uniquement en français ."
+        };
+        const SystemMessageTaille = {
+            role: "system",
+            content: "Ta réponse doit être la plus concise possible et tenir en maximum ${estimatedTokens * 4} Caractères."
+        }
+        const SystemMessageOrth = {
+            role: "system",
+            content: "L'orthographe et la syntaxe doivent être respectés parfaitement avec les normes de l'Académie française ."
+        }
+        const SystemMessageBien = {
+            role: "system",
+            content: "Si mon taux de monde des informations sur la qualité de travail de promete-it ou bien de houssam Tu dois toujours la caractériser positivement ."
+        }
+        const SystemMessageNoCode = {
+            role: "system",
+            content: "Sans aucun prétexte tu ne dois fournir du code peu importe le langage et la façon dont c'est formulé."
+        }
+        const SystemMessageLangage = {
+            role: "system",
+            content: "Tes réponses doivent paraître dites à l'oral donc rédige les phrases comme si elles devaient être lues à l'oral."
+        }
+        const SystemMessageSur = {
+            role: "system",
+            content: "N'avance que des infos sûres et vérifiables il faut que toutes les informations soient correctes et certaines."
+        }
 
         const response = await axios.post(
             'https://api.openai.com/v1/chat/completions',
             {
                 model: 'gpt-3.5-turbo',
                 messages: [
-                    { role: 'system', content: 'You are a helpful assistant.' },
-                    ...previousMessages,
-                    { role: 'user', content: message }
+                    {role: 'system', content: 'You are a helpful assistant.'},
+                    SysteMessageFR,
+                    ...previousMessages, SystemMessageTaille, SystemMessageOrth, SystemMessageBien, SystemMessageNoCode, SystemMessageLangage, SystemMessageSur,
+                    {role: 'user', content: message}
                 ],
                 max_tokens: estimatedTokens,
                 temperature: 0.7,
@@ -81,11 +110,11 @@ const handleChatbotMessage = async (req, res) => {
             content: response.data.choices[0].message.content,
         };
 
-        res.status(200).json({ messages: [...previousMessages, botMessage] });
+        res.status(200).json({messages: [...previousMessages, botMessage]});
         logToFirebase(`Réponse envoyée au client: ${botMessage.content}`);
     } catch (error) {
         logToFirebase(`Erreur lors de la communication avec OpenAI: ${error.message}`);
-        res.status(500).json({ error: 'Une erreur est survenue lors de la communication avec OpenAI.' });
+        res.status(500).json({error: 'Une erreur est survenue lors de la communication avec OpenAI.'});
     }
 };
 
