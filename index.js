@@ -1,7 +1,7 @@
 import express from 'express';
 import bodyParser from 'body-parser';
 import axios from 'axios';
-require('dotenv').config();
+import dotenv from 'dotenv';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
