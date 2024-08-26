@@ -1,3 +1,14 @@
 node_modules/
 *.local
 .env
+serviceAccountKey.json
+
+certificates/
+
+-a
+
+-i
+
+*.crt
+
+*.key
