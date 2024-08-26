@@ -2,10 +2,13 @@ import express from 'express';
 import bodyParser from 'body-parser';
 import axios from 'axios';
 import dotenv from 'dotenv';
+import cors from 'cors'; // Importer le middleware CORS
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+app.use(cors());
 
 // Middleware pour parser les JSON dans les requêtes HTTP
 app.use(bodyParser.json());
