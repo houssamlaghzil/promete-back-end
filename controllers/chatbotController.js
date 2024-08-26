@@ -1,5 +1,5 @@
 import axios from 'axios';
-import admin from 'firebase-admin';
+import admin from '../config/firebase-config.js';  // Importez Firebase admin initialisé
 
 const logToFirebase = async (message) => {
     try {
@@ -17,7 +17,7 @@ const logToFirebase = async (message) => {
 
 const estimateTokens = async (message) => {
     try {
-        logToFirebase(`Estimation des tokens pour le message: ${message}`);
+        await logToFirebase(`Estimation des tokens pour le message: ${message}`);
         const response = await axios.post(
             'https://api.openai.com/v1/chat/completions',
             {
