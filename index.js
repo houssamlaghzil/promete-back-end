@@ -3,7 +3,6 @@ import cors from 'cors';
 import fs from 'fs';
 import https from 'https';
 import dotenv from 'dotenv';
-import admin from './firebase-config.js';  // Importez Firebase admin initialisé
 import chatbotController from './controllers/chatbotController.js';
 
 dotenv.config();

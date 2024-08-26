@@ -1,5 +1,5 @@
 import admin from "firebase-admin";
-import serviceAccount from '../serviceAccountKey.json';  // Assurez-vous que le chemin est correct
+import serviceAccount from '../serviceAccountKey.json' assert { type: 'json' }; // Ajout de l'assertion JSON
 
 // Initialisation de Firebase Admin SDK
 if (!admin.apps.length) {

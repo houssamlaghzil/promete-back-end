@@ -14,7 +14,7 @@
   },
   "scripts": {
     "start": "node index.js",
-    "build": "yarn install"
+    "build": "git pull && yarn install"
   },
   "engines": {
     "node": "20"
