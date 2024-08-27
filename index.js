@@ -35,16 +35,27 @@ app.use(cors({
     }
 }));
 
-
 app.use(express.json());
 app.post('/chatbot', chatbotController);
-
 
 // Serveur de fichiers statiques dans le dossier uploads
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// Setup multer for file handling
-const upload = multer({ dest: 'uploads/' });
+// Types MIME d'images supportés
+const SUPPORTED_FORMATS = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+
+// Configuration de Multer pour gérer la taille et le type de fichier
+const upload = multer({
+    dest: 'uploads/',
+    limits: { fileSize: 5 * 1024 * 1024 }, // Limite de taille à 5 Mo
+    fileFilter: (req, file, cb) => {
+        if (SUPPORTED_FORMATS.includes(file.mimetype)) {
+            cb(null, true);
+        } else {
+            cb(new Error('Le format de fichier n\'est pas supporté. Veuillez télécharger des images au format JPEG, PNG, GIF ou WebP.'));
+        }
+    }
+});
 
 // Endpoint to detect file type and compatible extensions
 app.post('/extfile', upload.single('file'), async (req, res) => {
