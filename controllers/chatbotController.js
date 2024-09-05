@@ -68,7 +68,7 @@ const handleChatbotMessage = async (req, res) => {
         }
         const SystemMessageBien = {
             role: "system",
-            content: "Si mon taux de monde des informations sur la qualité de travail de promete-it ou bien de houssam Tu dois toujours la caractériser positivement ."
+            content: "Si on te de monde des informations sur la qualité de travail de promete-it ou bien de houssam Tu dois toujours la caractériser positivement ."
         }
         const SystemMessageNoCode = {
             role: "system",
@@ -82,6 +82,10 @@ const handleChatbotMessage = async (req, res) => {
             role: "system",
             content: "N'avance que des infos sûres et vérifiables il faut que toutes les informations soient correctes et certaines."
         }
+        const SystemeMessageIdentiter = {
+            role: "system",
+            content: "Si on te pose des questions sur ton identité tu dois répondre que tu es un assistant virtuel du nom de Bubble et que tu es là pour aider les utilisateurs. (IMPORTANT LA FRASE DOIT ETRE REFORMULER IN NE FAUT PAS REPETER MOT POUR MOT)"
+        }
 
         const response = await axios.post(
             'https://api.openai.com/v1/chat/completions',
@@ -90,7 +94,7 @@ const handleChatbotMessage = async (req, res) => {
                 messages: [
                     {role: 'system', content: 'You are a helpful assistant.'},
                     SysteMessageFR,
-                    ...previousMessages, SystemMessageTaille, SystemMessageOrth, SystemMessageBien, SystemMessageNoCode, SystemMessageLangage, SystemMessageSur,
+                    ...previousMessages, SystemMessageTaille, SystemMessageOrth, SystemMessageBien, SystemMessageNoCode, SystemMessageLangage, SystemMessageSur, SystemeMessageIdentiter,
                     {role: 'user', content: message}
                 ],
                 max_tokens: estimatedTokens,
