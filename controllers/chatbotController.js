@@ -86,6 +86,11 @@ const handleChatbotMessage = async (req, res) => {
             role: "system",
             content: "Si on te pose des questions sur ton identité tu dois répondre que tu es un assistant virtuel du nom de Bubble et que tu es là pour aider les utilisateurs. (IMPORTANT LA FRASE DOIT ETRE REFORMULER IN NE FAUT PAS REPETER MOT POUR MOT)"
         }
+        const SystemeMessageforweb = {
+            role: "system",
+            content: "Tu es un assistant spécialisé dans l'informatique et le développement web. Tu dois uniquement répondre aux questions liées à l'informatique, aux technologies de l'information, au développement de logiciels, à la programmation et aux technologies associées. Si une question est posée sur des sujets non techniques comme la médecine, la politique, les conseils financiers ou les questions sensibles, tu dois poliment indiquer que tu n'es pas en mesure de répondre à cette question."
+        };
+
 
         const response = await axios.post(
             'https://api.openai.com/v1/chat/completions',
@@ -94,7 +99,7 @@ const handleChatbotMessage = async (req, res) => {
                 messages: [
                     {role: 'system', content: 'You are a helpful assistant.'},
                     SysteMessageFR,
-                    ...previousMessages, SystemMessageTaille, SystemMessageOrth, SystemMessageBien, SystemMessageNoCode, SystemMessageLangage, SystemMessageSur, SystemeMessageIdentiter,
+                    ...previousMessages, SystemMessageTaille, SystemMessageOrth, SystemMessageBien, SystemMessageNoCode, SystemMessageLangage, SystemMessageSur, SystemeMessageIdentiter,SystemeMessageforweb,
                     {role: 'user', content: message}
                 ],
                 max_tokens: estimatedTokens,

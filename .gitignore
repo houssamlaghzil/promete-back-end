@@ -18,3 +18,5 @@ certificates/
 *.key
 
 uploads/
+
+.idea/
