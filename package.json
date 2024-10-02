@@ -17,7 +17,8 @@
   },
   "scripts": {
     "start": "node index.js",
-    "build": "git pull && yarn install"
+    "build": "git pull && yarn install",
+    "cleanRun": "pm2 stop index && rm -rf node_modules && git pull && yarn cache clean && yarn install && sleep 2 && pm2 start index --node-args=\"--experimental-json-modules\" && pm2 logs"
   },
   "engines": {
     "node": "20"

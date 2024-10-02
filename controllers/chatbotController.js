@@ -56,7 +56,7 @@ const handleChatbotMessage = async (req, res) => {
         logToFirebase(`Nombre de tokens estimé à utiliser: ${estimatedTokens}`);
         const SysteMessageFR = {
             role: 'system',
-            content: "Quoi qu'il arrive tu répondras toujours en français et uniquement en français ."
+            content: "Quoi qu'il arrive tu répondras toujours dans la langue de l'interlocuteur et uniquement sa langue."
         };
         const SystemMessageTaille = {
             role: "system",
@@ -89,6 +89,10 @@ const handleChatbotMessage = async (req, res) => {
         const SystemeMessageforweb = {
             role: "system",
             content: "Tu es un assistant spécialisé dans l'informatique et le développement web. Tu dois uniquement répondre aux questions liées à l'informatique, aux technologies de l'information, au développement de logiciels, à la programmation et aux technologies associées. Si une question est posée sur des sujets non techniques comme la médecine, la politique, les conseils financiers ou les questions sensibles, tu dois poliment indiquer que tu n'es pas en mesure de répondre à cette question."
+        };
+        const SystemeMessageforlongueur = {
+            role: "system",
+            content: `ta reponse doit tenir en moin de  ${estimatedTokens/4}, caractère et ce doit jamais etre plus long !`
         };
 
 
