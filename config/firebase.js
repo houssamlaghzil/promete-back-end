@@ -2,7 +2,7 @@ import { initializeApp } from 'firebase/app';
 import { getStorage } from 'firebase/storage';
 import { getDatabase } from 'firebase/database';
 import admin from 'firebase-admin';
-import serviceAccount from '../serviceAccountKey.json'; // chemin vers votre serviceAccountKey.json
+import serviceAccount from '../serviceAccountKey.json' assert { type: "json" };
 
 // Initialisation de Firebase Admin SDK pour l'accès aux services Firestore et Realtime Database
 admin.initializeApp({
