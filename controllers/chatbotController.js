@@ -103,7 +103,7 @@ const handleChatbotMessage = async (req, res) => {
                 messages: [
                     {role: 'system', content: 'You are a helpful assistant.'},
                     SysteMessageFR,
-                    ...previousMessages, SystemMessageTaille, SystemMessageOrth, SystemMessageBien, SystemMessageNoCode, SystemMessageLangage, SystemMessageSur, SystemeMessageIdentiter,SystemeMessageforweb,
+                    ...previousMessages, SystemMessageTaille, SystemMessageOrth, SystemMessageBien, SystemMessageNoCode, SystemMessageLangage, SystemMessageSur, SystemeMessageIdentiter,SystemeMessageforweb, SystemeMessageforlongueur,
                     {role: 'user', content: message}
                 ],
                 max_tokens: estimatedTokens,
