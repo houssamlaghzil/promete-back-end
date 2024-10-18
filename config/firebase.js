@@ -8,8 +8,8 @@ import serviceAccount from '../serviceAccountKey.json' assert { type: "json" };
 if (!admin.apps.length) {
     admin.initializeApp({
         credential: admin.credential.cert(serviceAccount),
-        storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
-        databaseURL: process.env.REACT_APP_DATABASEURL // Ajoutez ici l'URL de la base de données
+        storageBucket: process.env.FIREBASE_STORAGEBUCKET,
+        databaseURL: process.env.FIREBASE_DATABASEURL // Ajoutez la bonne URL ici
     });
 }
 
