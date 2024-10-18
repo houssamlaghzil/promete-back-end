@@ -1,11 +1,8 @@
-import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { getDatabase, ref as dbRef, set } from 'firebase/database';
+import { storage, db } from '../config/firebase.js';  // Chemin vers firebase.js
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { ref as dbRef, set } from 'firebase/database';
 import multer from 'multer';
 import path from 'path';
-
-// Firebase initialization (you must already have this set up in your project)
-const storage = getStorage();
-const db = getDatabase();
 
 // Configure Multer to handle file uploads
 const upload = multer({
