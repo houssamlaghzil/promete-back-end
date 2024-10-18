@@ -1,5 +1,6 @@
 import axios from 'axios';
-import admin from '../config/firebase.js';  // Importez Firebase admin initialisé
+import admin from '../config/firebase.js';
+
 
 const logToFirebase = async (message) => {
     try {

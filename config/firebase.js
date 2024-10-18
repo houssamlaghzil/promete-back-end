@@ -29,3 +29,4 @@ const storage = getStorage(app);  // Initialise Firebase Storage
 const db = getDatabase(app);      // Initialise Firebase Realtime Database
 
 export { storage, db };
+export default admin;
