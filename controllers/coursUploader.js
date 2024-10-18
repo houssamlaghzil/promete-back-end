@@ -6,9 +6,14 @@ import path from 'path';
 
 // Configure Multer to handle file uploads
 const upload = multer({
-    storage: multer.memoryStorage(), // Store file in memory temporarily
-    limits: { fileSize: 10 * 1024 * 1024 }, // Limit file size to 10MB
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 500 * 1024 * 1024 }, // Limite de 500 MB
 });
+
+// Fonction pour nettoyer le nom du fichier
+const sanitizeFileName = (fileName) => {
+    return fileName.replace(/[.#$[\]]/g, '_'); // Remplacer les caractères interdits
+};
 
 // Upload handler function
 const coursUploader = async (req, res) => {
@@ -16,6 +21,9 @@ const coursUploader = async (req, res) => {
         // Multer middleware to parse the file from the request
         upload.single('file')(req, res, async (err) => {
             if (err) {
+                if (err.code === 'LIMIT_FILE_SIZE') {
+                    return res.status(400).json({ error: 'File upload error', details: 'File too large. Maximum size is 500 MB.' });
+                }
                 return res.status(400).json({ error: 'File upload error', details: err.message });
             }
 
@@ -26,8 +34,11 @@ const coursUploader = async (req, res) => {
 
             const { classesAllowed, methods } = req.body; // Metadata from request
 
+            // Nettoyer le nom du fichier avant de l'utiliser dans Firebase Database
+            const sanitizedFileName = sanitizeFileName(file.originalname);
+
             // Define the file path in Firebase Storage
-            const storageRef = ref(storage, `courses/${file.originalname}`);
+            const storageRef = ref(storage, `courses/${sanitizedFileName}`);
 
             // Upload the file to Firebase Storage
             const snapshot = await uploadBytes(storageRef, file.buffer, {
@@ -39,15 +50,15 @@ const coursUploader = async (req, res) => {
 
             // Store metadata in Firebase Realtime Database
             const courseData = {
-                fileName: file.originalname,
+                fileName: sanitizedFileName,
                 downloadURL: downloadURL,
-                methods: methods || 'Not specified', // Add methods data
-                classesAllowed: classesAllowed ? classesAllowed.split(',') : [], // Store allowed classes as an array
+                methods: methods || 'Not specified',
+                classesAllowed: classesAllowed ? classesAllowed.split(',') : [],
                 uploadedAt: new Date().toISOString(),
             };
 
             // Save course metadata in Firebase Database under 'courses'
-            const courseKey = path.basename(file.originalname, path.extname(file.originalname));
+            const courseKey = path.basename(sanitizedFileName, path.extname(sanitizedFileName));
             await set(dbRef(db, `courses/${courseKey}`), courseData);
 
             // Respond with success and file details

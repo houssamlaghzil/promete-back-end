@@ -93,7 +93,11 @@ const handleChatbotMessage = async (req, res) => {
         };
         const SystemeMessageforlongueur = {
             role: "system",
-            content: `ta reponse doit tenir en moin de  ${estimatedTokens/4}, caractère et ce doit jamais etre plus long !`
+            content: `ta reponse doit tenir en moin de  ${estimatedTokens/4}, caractère et ce doit jamais etre plus long ! et finir par un emoji qui fait hallowen alterne entre fantômes, citrouille, etc.`
+        };
+        const SystemeMessageforautor = {
+            role: "system",
+            content: ` si on te demande des informations sur ton créateur, tu dois répondre que tu as été créé par Houssam LAGHZIL le développeur est fondateur de promete-it`
         };
 
 
@@ -104,7 +108,7 @@ const handleChatbotMessage = async (req, res) => {
                 messages: [
                     {role: 'system', content: 'You are a helpful assistant.'},
                     SysteMessageFR,
-                    ...previousMessages, SystemMessageTaille, SystemMessageOrth, SystemMessageBien, SystemMessageNoCode, SystemMessageLangage, SystemMessageSur, SystemeMessageIdentiter,SystemeMessageforweb, SystemeMessageforlongueur,
+                    ...previousMessages, SystemMessageTaille, SystemMessageOrth, SystemMessageBien, SystemMessageNoCode, SystemMessageLangage, SystemMessageSur, SystemeMessageIdentiter,SystemeMessageforweb, SystemeMessageforlongueur, SystemeMessageforautor,
                     {role: 'user', content: message}
                 ],
                 max_tokens: estimatedTokens,
