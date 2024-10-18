@@ -1,7 +1,5 @@
-import fs from 'fs';
 import admin from 'firebase-admin';
-
-const serviceAccount = JSON.parse(fs.readFileSync('../serviceAccountKey.json', 'utf8'));
+import serviceAccount from '../serviceAccountKey.json' assert { type: "json" };
 
 // Initialisation de Firebase Admin SDK
 if (!admin.apps.length) {
