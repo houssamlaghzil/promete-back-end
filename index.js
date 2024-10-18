@@ -9,6 +9,7 @@ import { fileURLToPath } from 'url';
 import fileTypeDetection from './controllers/fileTypeDetectionController.js';
 import fileConversion from './controllers/fileConversionController.js';
 import chatbotController from "./controllers/chatbotController.js";
+import coursUploader from "./controllers/coursUploader.js";
 
 dotenv.config();
 
@@ -37,6 +38,8 @@ app.use(cors({
 
 app.use(express.json());
 app.post('/chatbot', chatbotController);
+app.post('/api/upload/cours',coursUploader)
+
 
 // Serveur de fichiers statiques dans le dossier uploads
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
