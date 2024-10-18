@@ -24,14 +24,14 @@ import { getStorage } from 'firebase/storage';
 import { getDatabase } from 'firebase/database';
 
 const firebaseConfig = {
-    apiKey: "AIzaSyDpLsFlJEk6oA94wrkHlEn8DuOzg67xNxw",
-    authDomain: "promete-it.firebaseapp.com",
-    databaseURL: "https://promete-it-default-rtdb.europe-west1.firebasedatabase.app",
-    projectId: "promete-it",
-    storageBucket: "promete-it.appspot.com",
-    messagingSenderId: "87937879588",
-    appId: "1:87937879588:web:6cb4fd345332b14e76d2b1",
-    measurementId: "G-2FZ8GSY02W"
+    apiKey: process.env.REACT_APP_APIKEY,
+    authDomain: process.env.REACT_APP_AUTHDOMAINE,
+    databaseURL: process.env.REACT_APP_DATABASEURL,
+    projectId: process.env.REACT_APP_PROJECTID,
+    storageBucket: process.env.REACT_APP_STORAGEBUCKET,
+    messagingSenderId: process.env.REACT_APP_MESSAGINGSENDERID,
+    appId: process.env.REACT_APP_APPID,
+    measurementId: process.env.REACT_APP_MEASURMENTID
 };
 
 const app = initializeApp(firebaseConfig);
