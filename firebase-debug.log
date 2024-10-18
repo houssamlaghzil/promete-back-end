@@ -1,0 +1,14 @@
+[debug] [2024-10-18T07:56:33.488Z] ----------------------------------------------------------------------
+[debug] [2024-10-18T07:56:33.490Z] Command:       /usr/bin/node /root/mon_dossier/promete-back-end/node_modules/.bin/firebase login:ci
+[debug] [2024-10-18T07:56:33.491Z] CLI Version:   13.22.1
+[debug] [2024-10-18T07:56:33.491Z] Platform:      linux
+[debug] [2024-10-18T07:56:33.491Z] Node Version:  v20.17.0
+[debug] [2024-10-18T07:56:33.491Z] Time:          Fri Oct 18 2024 09:56:33 GMT+0200 (Central European Summer Time)
+[debug] [2024-10-18T07:56:33.492Z] ----------------------------------------------------------------------
+[debug] 
+[warn] ⚠  Authenticating with a `login:ci` token is deprecated and will be removed in a future major version of `firebase-tools`. Instead, use a service account key with `GOOGLE_APPLICATION_CREDENTIALS`: https://cloud.google.com/docs/authentication/getting-started 
+[info] 
+[info] Visit this URL on this device to log in:
+[info] https://accounts.google.com/o/oauth2/auth?client_id=563584335869-fgrhgmd47bqnekij5i8b5pr03ho849e6.apps.googleusercontent.com&scope=email%20openid%20https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fcloudplatformprojects.readonly%20https%3A%2F%2Fwww.googleapis.com%2Fauth%2Ffirebase%20https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fcloud-platform&response_type=code&state=732115083&redirect_uri=http%3A%2F%2Flocalhost%3A9005
+[info] 
+[info] Waiting for authentication...

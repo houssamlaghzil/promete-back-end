@@ -4,11 +4,14 @@ import { getDatabase } from 'firebase/database';
 import admin from 'firebase-admin';
 import serviceAccount from '../serviceAccountKey.json' assert { type: "json" };
 
-// Initialisation de Firebase Admin SDK pour l'accès aux services Firestore et Realtime Database
-admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-    storageBucket: process.env.FIREBASE_STORAGE_BUCKET // Assurez-vous d'ajouter cette variable dans votre .env
-});
+// Initialisation de Firebase Admin SDK
+if (!admin.apps.length) {
+    admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount),
+        storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
+        databaseURL: process.env.REACT_APP_DATABASEURL // Ajoutez ici l'URL de la base de données
+    });
+}
 
 // Initialisation du SDK Firebase Client
 const firebaseConfig = {
@@ -18,6 +21,7 @@ const firebaseConfig = {
     storageBucket: process.env.REACT_APP_STORAGEBUCKET,
     messagingSenderId: process.env.REACT_APP_MESSAGINGSENDERID,
     appId: process.env.REACT_APP_APPID,
+    databaseURL: process.env.REACT_APP_DATABASEURL // Ajoutez cette ligne pour le SDK Client
 };
 
 const app = initializeApp(firebaseConfig);
