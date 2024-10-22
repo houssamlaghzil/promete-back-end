@@ -14,14 +14,14 @@ import coursUploader from "./controllers/coursUploader.js";
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 443;
+const PORT = 443;
 
 // For ES modules: Get __dirname equivalent
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Configure CORS
-const allowedOrigins = ['http://localhost:3000', 'https://promete-it.fr'];
+const allowedOrigins = ['http://localhost:3000', 'https://promete-it.fr', 'https://www.promete-it.fr'];
 
 app.use(cors({
     origin: function (origin, callback) {
@@ -33,24 +33,34 @@ app.use(cors({
         }
         console.log(`CORS check passed for origin: ${origin}`);
         return callback(null, true);
-    }
+    },
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+    credentials: true
 }));
 
+// Autres middlewares comme body-parser
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+app.get('/test', (req, res) => {
+    res.send('Test route is working!');
+});
+
+// API endpoints
 app.post('/chatbot', chatbotController);
-app.post('/api/upload/cours',coursUploader)
+app.post('/api/upload/cours', coursUploader);
 
-
-// Serveur de fichiers statiques dans le dossier uploads
+// Serve static files from the "uploads" folder
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// Types MIME d'images supportés
+// Supported image MIME types
 const SUPPORTED_FORMATS = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
 
-// Configuration de Multer pour gérer la taille et le type de fichier
+// Configure Multer for file upload
 const upload = multer({
     dest: 'uploads/',
-    limits: { fileSize: 5 * 1024 * 1024 }, // Limite de taille à 5 Mo
+    limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB limit
     fileFilter: (req, file, cb) => {
         if (SUPPORTED_FORMATS.includes(file.mimetype)) {
             cb(null, true);
@@ -60,7 +70,7 @@ const upload = multer({
     }
 });
 
-// Fonction pour supprimer un fichier
+// Function to delete files
 const deleteFile = (filePath) => {
     fs.unlink(filePath, (err) => {
         if (err) {
@@ -71,7 +81,7 @@ const deleteFile = (filePath) => {
     });
 };
 
-// Fonction pour supprimer les fichiers les plus anciens si le nombre total dépasse 40
+// Clean up old files if the total number exceeds 40
 const cleanupOldFiles = () => {
     const directory = path.join(__dirname, 'uploads');
     fs.readdir(directory, (err, files) => {
@@ -81,17 +91,14 @@ const cleanupOldFiles = () => {
         }
 
         if (files.length > 40) {
-            // Récupérer les détails des fichiers (nom + temps de modification)
             const fileDetails = files.map(file => {
                 const filePath = path.join(directory, file);
                 const stats = fs.statSync(filePath);
                 return { filePath, mtime: stats.mtime.getTime() };
             });
 
-            // Trier les fichiers par temps de modification (le plus ancien en premier)
             fileDetails.sort((a, b) => a.mtime - b.mtime);
 
-            // Supprimer les fichiers les plus anciens jusqu'à ce que le total soit <= 40
             const filesToDelete = fileDetails.slice(0, files.length - 40);
             const fifteenMinutesAgo = Date.now() - 15 * 60 * 1000;
 
@@ -104,7 +111,7 @@ const cleanupOldFiles = () => {
     });
 };
 
-// Endpoint to detect file type and compatible extensions
+// File type detection endpoint
 app.post('/extfile', upload.single('file'), async (req, res) => {
     console.log('Received request to /extfile');
     try {
@@ -116,7 +123,6 @@ app.post('/extfile', upload.single('file'), async (req, res) => {
             return res.status(400).json({ error: errorMsg });
         }
 
-        // Planifier la suppression du fichier après 15 minutes
         setTimeout(() => deleteFile(file.path), 15 * 60 * 1000);
 
         const result = await fileTypeDetection(file);
@@ -125,7 +131,6 @@ app.post('/extfile', upload.single('file'), async (req, res) => {
             return res.status(400).json(result);
         }
 
-        // Vérifier et nettoyer les fichiers anciens si nécessaire
         cleanupOldFiles();
 
         res.json(result);
@@ -135,7 +140,7 @@ app.post('/extfile', upload.single('file'), async (req, res) => {
     }
 });
 
-// Endpoint to convert file to all compatible formats
+// File conversion endpoint
 app.post('/convfile', upload.single('file'), async (req, res) => {
     console.log('Received request to /convfile');
     try {
@@ -147,7 +152,6 @@ app.post('/convfile', upload.single('file'), async (req, res) => {
             return res.status(400).json({ error: errorMsg });
         }
 
-        // Planifier la suppression du fichier après 15 minutes
         setTimeout(() => deleteFile(file.path), 15 * 60 * 1000);
 
         const conversionResult = await fileConversion(file);
@@ -156,18 +160,15 @@ app.post('/convfile', upload.single('file'), async (req, res) => {
             return res.status(400).json(conversionResult);
         }
 
-        // Planifier la suppression des fichiers convertis après 15 minutes
         conversionResult.convertedFiles.forEach(convertedFile => {
             setTimeout(() => deleteFile(convertedFile.path), 15 * 60 * 1000);
         });
 
-        // Vérifier et nettoyer les fichiers anciens si nécessaire
         cleanupOldFiles();
 
-        // Generate relative URLs for the converted files
         conversionResult.convertedFiles = conversionResult.convertedFiles.map(file => ({
             ...file,
-            path: `/uploads/${path.basename(file.path)}`  // Use relative path
+            path: `/uploads/${path.basename(file.path)}`
         }));
 
         res.json(conversionResult);
