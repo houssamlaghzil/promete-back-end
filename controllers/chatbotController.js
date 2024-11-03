@@ -93,7 +93,7 @@ const handleChatbotMessage = async (req, res) => {
         };
         const SystemeMessageforlongueur = {
             role: "system",
-            content: `ta reponse doit tenir en moin de  ${estimatedTokens/4}, caractère et ce doit jamais etre plus long ! et finir par un emoji qui fait hallowen alterne entre fantômes, citrouille, etc.`
+            content: `ta reponse doit tenir en moin de  ${estimatedTokens/4}, caractère et ce doit jamais etre plus long ! et finir par un emoji qui fait noel par exemple 🎅, 🎄, 🎁, 🦌, 🤶`
         };
         const SystemeMessageforautor = {
             role: "system",
