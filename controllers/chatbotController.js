@@ -178,7 +178,7 @@ const buildSystemMessages = (estimatedTokens, previousMessages, userMessage) => 
     };
     const SystemeMessageforlongueur = {
         role: "system",
-        content: `ta reponse doit tenir en moin de  ${estimatedTokens/4}, caractère et ce doit jamais etre plus long ! et finir par un emoji qui fait noel par exemple 🎅, 🎄, 🎁, 🦌, 🤶`
+        content: `ta reponse doit tenir en moin de  ${estimatedTokens/4}, caractère et ce doit jamais etre plus long ! et finir par un emoji`
     };
     const SystemeMessageforautor = {
         role: "system",
@@ -254,6 +254,7 @@ const handleChatbotMessage = async (req, res) => {
                     'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
                     'Content-Type': 'application/json',
                 },
+                timeout: 10000, // 10 secondes
             }
         );
 
