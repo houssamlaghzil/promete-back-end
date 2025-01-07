@@ -21,7 +21,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Configure CORS
-const allowedOrigins = ['http://localhost:3000', 'https://promete-it.fr', 'https://www.promete-it.fr'];
+const allowedOrigins = ['http://localhost:3000', 'https://promete-it.fr', 'https://www.promete-it.fr', 'https://www.xn--mon-projet-numrique-ozb.fr', 'https://xn--mon-projet-numrique-ozb.fr'];
 
 app.use(cors({
     origin: function (origin, callback) {
