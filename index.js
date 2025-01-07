@@ -23,6 +23,7 @@ const __dirname = path.dirname(__filename);
 // Configure your allowed origins
 const allowedOrigins = [
     'http://localhost:3000',
+    'http://localhost:443',
     'https://promete-it.fr',
     'https://www.promete-it.fr',
     'https://www.xn--mon-projet-numrique-ozb.fr',
