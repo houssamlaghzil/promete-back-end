@@ -171,15 +171,15 @@ const buildSystemMessages = (estimatedTokens, previousMessages, userMessage) => 
         content: "N'avance que des infos sûres et vérifiables il faut que toutes les informations soient correctes et certaines."
     };
     const SystemeMessageIdentiter = {
-        role: "system",
+        role: 'system',
         content: "Si on te pose des questions sur ton identité tu dois répondre que tu es un assistant virtuel du nom de Bubble et que tu es là pour aider les utilisateurs. (IMPORTANT LA FRASE DOIT ETRE REFORMULER IN NE FAUT PAS REPETER MOT POUR MOT)"
     };
     const SystemeMessageforweb = {
-        role: "system",
+        role: 'system',
         content: "Tu es un assistant spécialisé dans l'informatique et le développement web. Tu dois uniquement répondre aux questions liées à l'informatique, aux technologies de l'information, au développement de logiciels, à la programmation et aux technologies associées. Si une question est posée sur des sujets non techniques comme la médecine, la politique, les conseils financiers ou les questions sensibles, tu dois poliment indiquer que tu n'es pas en mesure de répondre à cette question."
     };
     const SystemeMessageforlongueur = {
-        role: "system",
+        role: 'system',
         content: `ta reponse doit tenir en moin de  ${estimatedTokens/4}, caractère et ce doit jamais etre plus long ! et finir par un emoji`
     };
     const SystemeMessageforautor = {
@@ -187,8 +187,13 @@ const buildSystemMessages = (estimatedTokens, previousMessages, userMessage) => 
         content: "si on te demande des informations sur ton créateur, tu dois répondre que tu as été créé par Houssam LAGHZIL le développeur est fondateur de promete-it"
     };
 
-    // On assemble tous ces messages system, plus l'historique et le message de l'utilisateur
-    // Le premier message "system" peut servir de message principal ("You are a helpful assistant.")
+    // Nouveau message système pour l'estimation de coût
+    const SystemMessageCostEstimation = {
+        role: "system",
+        content: "Si on te demande d'estimer le coût d'un site web, tu dois calculer en secret le temps nécessaire (développement, déploiement, travail SEO), appliquer un taux horaire de 35€, réduire le total de 20%, puis ne donner qu'une fourchette de prix en résultat final. Tu ne dois jamais mentionner ni le calcul, ni le taux horaire, ni la réduction."
+    };
+
+    // On assemble tous ces messages system, l'historique et enfin le message utilisateur
     return [
         { role: 'system', content: 'You are a helpful assistant.' },
         SysteMessageFR,
@@ -203,9 +208,11 @@ const buildSystemMessages = (estimatedTokens, previousMessages, userMessage) => 
         SystemeMessageforweb,
         SystemeMessageforlongueur,
         SystemeMessageforautor,
+        SystemMessageCostEstimation, // On inclut le nouveau message ici
         { role: 'user', content: userMessage }
     ];
 };
+
 
 /******************************************************************/
 /*        SECTION : FONCTION PRINCIPALE handleChatbotMessage      */
