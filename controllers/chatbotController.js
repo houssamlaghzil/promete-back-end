@@ -5,6 +5,8 @@
 // Import des dépendances
 import axios from 'axios';
 import admin from '../config/firebase.js';
+import dotenv from 'dotenv';
+dotenv.config();
 
 /******************************************************************/
 /*                        SECTION CONFIGURATION                   */
