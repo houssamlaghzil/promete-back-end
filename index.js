@@ -20,17 +20,41 @@ const PORT = 443;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Configure CORS
-const allowedOrigins = ['http://localhost:3000', 'https://promete-it.fr', 'https://www.promete-it.fr', 'https://www.xn--mon-projet-numrique-ozb.fr', 'https://xn--mon-projet-numrique-ozb.fr', 'https://mon-projet-numérique.fr'];
+// Configure your allowed origins
+const allowedOrigins = [
+    'http://localhost:3000',
+    'https://promete-it.fr',
+    'https://www.promete-it.fr',
+    'https://www.xn--mon-projet-numrique-ozb.fr',
+    'https://xn--mon-projet-numrique-ozb.fr',
+    'https://mon-projet-numérique.fr'
+];
 
+// Middleware pour logger l’origin AVANT tout
+app.use((req, res, next) => {
+    // origin peut se trouver dans req.headers.origin
+    const origin = req.headers.origin || 'Origin inconnu';
+    console.log(`Origine de la requête : ${origin}`);
+    next();
+});
+
+// Configure CORS
 app.use(cors({
     origin: function (origin, callback) {
-        if (!origin) return callback(null, true);
+        // Si origin est undefined (ex.: requêtes depuis postman)
+        // ou si on veut autoriser en local
+        if (!origin) {
+            console.log('Aucune origin détectée : requête possible depuis Postman ou script serveur.');
+            return callback(null, true);
+        }
+
+        // Vérifier si l'origin est dans la liste
         if (allowedOrigins.indexOf(origin) === -1) {
-            const msg = 'Cette origine CORS n’est pas autorisée.';
+            const msg = `Cette origine CORS n’est pas autorisée: ${origin}`;
             console.error(msg);
             return callback(new Error(msg), false);
         }
+
         console.log(`CORS check passed for origin: ${origin}`);
         return callback(null, true);
     },
@@ -166,6 +190,7 @@ app.post('/convfile', upload.single('file'), async (req, res) => {
 
         cleanupOldFiles();
 
+        // Adapte le path pour qu'il soit accessible en statique via /uploads
         conversionResult.convertedFiles = conversionResult.convertedFiles.map(file => ({
             ...file,
             path: `/uploads/${path.basename(file.path)}`
