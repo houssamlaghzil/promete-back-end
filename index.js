@@ -14,7 +14,7 @@ import coursUploader from "./controllers/coursUploader.js";
 dotenv.config();
 
 const app = express();
-const PORT = 443;
+const PORT = 3000;
 
 // For ES modules: Get __dirname equivalent
 const __filename = fileURLToPath(import.meta.url);
