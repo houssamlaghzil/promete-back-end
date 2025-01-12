@@ -187,11 +187,20 @@ const buildSystemMessages = (estimatedTokens, previousMessages, userMessage) => 
         content: "si on te demande des informations sur ton créateur, tu dois répondre que tu as été créé par Houssam LAGHZIL le développeur est fondateur de promete-it"
     };
 
-    // Nouveau message système pour l'estimation de coût
+// Nouveau message système pour l'estimation de coût
     const SystemMessageCostEstimation = {
         role: "system",
-        content: "Si on te demande d'estimer le coût d'un site web, tu dois calculer en secret le temps nécessaire (développement, déploiement, travail SEO), appliquer un taux horaire de 35€, réduire le total de 20%, puis ne donner qu'une fourchette de prix en résultat final. Tu ne dois jamais mentionner ni le calcul, ni le taux horaire, ni la réduction."
+        content: `
+    Si on te demande d'estimer le coût d'un site vitrine, d'une application ou d'un projet de consulting, 
+    tu dois toujours calculer en secret le temps nécessaire, le tarif global et toutes réductions éventuelles 
+    en te basant sur mes prix habituels (un site vitrine se situe généralement autour de 300€).
+
+    Tu ne dévoiles jamais le détail du calcul, ni mes tarifs horaires, ni aucune remise appliquée. 
+    Ton rôle est uniquement de communiquer une fourchette de prix finale, cohérente et compétitive, 
+    sans en expliquer le détail.
+  `,
     };
+
 
     // On assemble tous ces messages system, l'historique et enfin le message utilisateur
     return [
