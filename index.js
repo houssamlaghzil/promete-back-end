@@ -1,25 +1,30 @@
 import express from 'express';
-import chatbotController from './controllers/chatbotController.js';
 import cors from 'cors';
+import bodyParser from 'body-parser';
 
+// Contrôleurs
+import chatbotController from './controllers/chatbotController.js';
+import emailController from './controllers/emailController.js';
 
 const app = express();
 const PORT = 3000;
 
-// Middleware pour analyser le JSON
-app.use(express.json());
+// Middleware pour parser le corps en JSON
+app.use(bodyParser.json());
 
-// Configurer les origines autorisées
+// Configuration des origines autorisées
 const allowedOrigins = [
     'http://localhost:3000',
     'https://www.xn--mon-projet-numrique-ozb.fr',
     'https://api.promete-it.fr',
 ];
 
-// Activer CORS
 app.use(cors({
     origin: function (origin, callback) {
-        if (!origin) return callback(null, true); // Autorise les requêtes sans origine (ex: Postman)
+        // Autorise les requêtes sans origine (ex: Postman)
+        if (!origin) return callback(null, true);
+
+        // Vérifie que l'origine fait partie de la liste autorisée
         if (allowedOrigins.indexOf(origin) === -1) {
             return callback(new Error('CORS policy: Origin not allowed'), false);
         }
@@ -30,10 +35,11 @@ app.use(cors({
     credentials: true, // Si vous utilisez des cookies ou des headers d'autorisation
 }));
 
-
-// Définissez vos routes ici
+// Routes
 app.post('/chatbot', chatbotController);
+app.post('/email', emailController);
 
+// Démarrage du serveur
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
 });
