@@ -2,35 +2,31 @@ import nodemailer from 'nodemailer';
 
 const emailController = async (req, res) => {
     try {
-        // Récupérer les champs depuis le corps de la requête
         const { to, subject, text, html } = req.body;
 
-        // Configurer le transport pour Microsoft 365 (Office 365)
         const transporter = nodemailer.createTransport({
             host: 'smtp.office365.com',
-            port: 587,         // Port STARTTLS
-            secure: false,     // false pour 587 (STARTTLS)
+            port: 587,
+            secure: false, // true pour le port 465
             auth: {
-                user: 'conact@promete-it.fr',    // Votre adresse email pro
-                pass: 'VOTRE_MOT_DE_PASSE',      // Votre mot de passe ou mot de passe d'application
+                user: process.env.EMAIL_USER,
+                pass: process.env.EMAIL_PASSWORD,
             },
             tls: {
                 ciphers: 'SSLv3',
             },
         });
 
-        // --- TEST DE CONNEXION (transporter.verify) ---
-        // Cela va vérifier que vos identifiants et la config SMTP sont corrects.
+        // Test de connexion SMTP
         await transporter.verify();
         console.log('Connexion SMTP réussie !');
 
-        // -- Envoyer l'email --
         const mailOptions = {
-            from: 'conact@promete-it.fr', // L'adresse e-mail d'envoi
-            to,                           // Destinataire(s)
-            subject,                      // Sujet
-            text,                         // Contenu en texte brut
-            html,                         // Contenu HTML (si fourni)
+            from: process.env.EMAIL_USER,
+            to,
+            subject,
+            text,
+            html,
         };
 
         const info = await transporter.sendMail(mailOptions);
@@ -44,7 +40,6 @@ const emailController = async (req, res) => {
     } catch (error) {
         console.error('Erreur lors de l\'envoi de l\'email:', error);
 
-        // Séparer l’erreur de connexion de l’erreur d’envoi
         if (error && error.message && error.message.includes('Invalid login')) {
             return res.status(401).json({
                 message: 'Échec de la connexion SMTP. Vérifiez vos identifiants.',
