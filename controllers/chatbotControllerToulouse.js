@@ -8,29 +8,17 @@ import splitTextIntoChunks from './splitTextIntoChunks.js';
 import { createIndex, searchIndex } from './indexAndSearch.js';
 dotenv.config();
 
-// Configuration de l'API OpenAI
+/******************************************************************/
+/*                        SECTION CONFIGURATION                   */
+/******************************************************************/
+// Endpoint de l'API OpenAI
 const OPENAI_API_ENDPOINT = 'https://api.openai.com/v1/chat/completions';
+
+// Modèle de langage à utiliser
 const OPENAI_MODEL = 'gpt-4'; // Utilisez le modèle approprié
 
-// Chemin vers le fichier PDF
-const PDF_PATH = './path/to/your/file.pdf';
-
-// Extraction, segmentation et indexation du PDF au démarrage
-let index = [];
-
-const initializePDFIndex = async () => {
-    try {
-        const text = await extractTextFromPDF(PDF_PATH);
-        const chunks = splitTextIntoChunks(text);
-        index = createIndex(chunks);
-        console.log(`Index créé avec ${index.length} chunks.`);
-    } catch (error) {
-        console.error('Erreur lors de l\'initialisation de l\'index du PDF :', error.message);
-    }
-};
-
-// Initialiser l'index au démarrage
-initializePDFIndex();
+// Chemin relatif vers le fichier PDF (par rapport à extractTextFromPDF.js)
+const PDF_RELATIVE_PATH = './test/data/05-versions-space.pdf';
 
 /******************************************************************/
 /*                        SECTION : LOGGING                       */
@@ -54,8 +42,36 @@ const logToFirebase = async (message) => {
 };
 
 /******************************************************************/
+/*                 SECTION : INITIALISATION DU PDF                */
+/******************************************************************/
+// Extraction, segmentation et indexation du PDF au démarrage
+let index = [];
+
+const initializePDFIndex = async () => {
+    try {
+        console.log(`Répertoire courant : ${__dirname}`); // Log ajouté
+        const text = await extractTextFromPDF(PDF_RELATIVE_PATH);
+        const chunks = splitTextIntoChunks(text);
+        index = createIndex(chunks);
+        console.log(`Index créé avec ${index.length} chunks.`);
+        await logToFirebase(`Index créé avec ${index.length} chunks.`);
+    } catch (error) {
+        console.error('Erreur lors de l\'initialisation de l\'index du PDF :', error.message);
+        await logToFirebase(`Erreur lors de l'initialisation de l'index du PDF : ${error.message}`);
+    }
+};
+
+// Initialiser l'index au démarrage
+initializePDFIndex();
+
+/******************************************************************/
 /*               SECTION : CONSTRUCTION DES MESSAGES SYSTEM       */
 /******************************************************************/
+/**
+ * Construit le message système incluant les informations pertinentes du PDF.
+ * @param {string} relevantInfo - Informations pertinentes extraites du PDF.
+ * @returns {Object} - Message système structuré.
+ */
 const buildSystemMessage = (relevantInfo) => {
     return {
         role: 'system',
@@ -76,6 +92,7 @@ const buildSystemMessage = (relevantInfo) => {
 const handleChatbotMessage = async (req, res) => {
     const { message, previousMessages } = req.body;
 
+    // Validation des entrées
     if (!message || typeof message !== 'string') {
         return res.status(400).json({
             error: 'Le champ "message" est requis et doit être une chaîne de caractères.'
@@ -92,6 +109,7 @@ const handleChatbotMessage = async (req, res) => {
 
         // Rechercher les informations pertinentes dans l'index
         const relevantInfo = searchIndex(message, index);
+        await logToFirebase(`Informations pertinentes trouvées: ${relevantInfo ? 'Oui' : 'Non'}`);
 
         // Construire le message système avec les informations pertinentes
         const systemMessage = buildSystemMessage(relevantInfo);
@@ -141,12 +159,15 @@ const handleChatbotMessage = async (req, res) => {
 
     } catch (error) {
         if (error.response) {
+            // Erreur liée à la réponse de l'API OpenAI
             await logToFirebase(`Erreur API OpenAI (status: ${error.response.status}): ${error.response.data?.error?.message || error.response.statusText}`);
             return res.status(500).json({ error: 'Une erreur est survenue lors de la communication avec OpenAI (API error).' });
         } else if (error.request) {
+            // Erreur liée à la requête
             await logToFirebase(`Erreur réseau lors de l'appel à OpenAI: ${error.message}`);
             return res.status(502).json({ error: 'Une erreur réseau est survenue lors de la communication avec OpenAI.' });
         } else {
+            // Autres erreurs
             await logToFirebase(`Erreur inattendue: ${error.message}`);
             return res.status(500).json({ error: 'Une erreur inattendue est survenue.' });
         }

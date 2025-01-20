@@ -22,7 +22,7 @@ const splitTextIntoChunks = (text, chunkSize = 500, overlap = 50) => {
     return chunks;
 };
 
-// Exemple d'utilisation
+// Exemple d'utilisation (peut être commenté dans le module final)
 const sampleText = "Votre texte extrait du PDF...";
 const chunks = splitTextIntoChunks(sampleText);
 console.log(`Nombre de chunks créés : ${chunks.length}`);

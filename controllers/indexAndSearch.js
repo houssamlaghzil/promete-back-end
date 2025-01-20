@@ -16,8 +16,8 @@ const createIndex = (chunks) => {
  * Recherche les chunks les plus pertinents en fonction des mots-clés de la requête.
  * @param {string} query - La question de l'utilisateur.
  * @param {Object[]} index - L'index des chunks.
- * @param {number} topK - Nombre de résultats à retourner.
- * @returns {string} - Texte des chunks les plus pertinents.
+ * @param {number} topK - Nombre de résultats à récupérer.
+ * @returns {string} - Texte des chunks récupérés.
  */
 const searchIndex = (query, index, topK = 3) => {
     const queryWords = query.toLowerCase().split(/\s+/);
@@ -40,15 +40,15 @@ const searchIndex = (query, index, topK = 3) => {
     return topChunks.join('\n\n');
 };
 
-// Exemple d'utilisation
-const chunks = [
-    "Chunk 1 text...",
-    "Chunk 2 text...",
+// Exemple d'utilisation (peut être commenté dans le module final)
+const chunksExample = [
+    "Chunk 1 text about museum hours...",
+    "Chunk 2 text about opening dates...",
     // ... autres chunks
 ];
-const index = createIndex(chunks);
-const query = "Votre question utilisateur ici";
-const relevantInfo = searchIndex(query, index);
-console.log('Informations pertinentes :', relevantInfo);
+const indexExample = createIndex(chunksExample);
+const queryExample = "Horaires d'ouverture du musée";
+const relevantInfoExample = searchIndex(queryExample, indexExample);
+console.log('Informations pertinentes :', relevantInfoExample);
 
 export { createIndex, searchIndex };
