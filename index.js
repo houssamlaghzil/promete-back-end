@@ -17,7 +17,7 @@ app.use(bodyParser.json());
 const allowedOrigins = [
     'http://localhost:3000',
     'https://www.xn--mon-projet-numrique-ozb.fr',
-    'https://toulouse-adventure.promete-it.fr/',
+    'https://toulouse-adventure.promete-it.fr',
     'https://api.promete-it.fr',
 ];
 
