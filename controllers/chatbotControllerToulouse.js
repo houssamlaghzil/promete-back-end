@@ -17,7 +17,7 @@ dotenv.config();
 /*                        SECTION CONFIGURATION                   */
 /******************************************************************/
 const OPENAI_API_ENDPOINT = 'https://api.openai.com/v1/chat/completions';
-const OPENAI_MODEL = 'gpt-4'; // ou "gpt-3.5-turbo", etc.
+const OPENAI_MODEL = "gpt-4o-mini"; // ou "gpt-3.5-turbo", etc.
 
 // -- Charge le JSON (en évitant l'import ESM pour le JSON) --
 const dataToulousePath = path.join(__dirname, '../data-ia/dataToulouse.json');
