@@ -1,0 +1,92 @@
+{
+  "informationsTrajet": {
+    "dateDepart": "16 février 2025",
+    "lieuDepart": "Cergy",
+    "heureDepart": "08:00",
+    "destinationsPrevues": [
+      {
+        "ville": "Orléans",
+        "typeArret": "Première pause"
+      },
+      {
+        "ville": "Limoges",
+        "typeArret": "Deuxième pause"
+      },
+      {
+        "ville": "Cahors",
+        "typeArret": "Troisième pause"
+      }
+    ],
+    "dureeTotaleConduite": "7 heures",
+    "tempsTotalPauses": "45 minutes",
+    "tempsTotalEstime": "8 heures 15 minutes",
+    "coutEstimeTrajet": {
+      "peage": 55,
+      "essence": 85,
+      "total": 140
+    }
+  },
+  "hebergement": {
+    "nom": "O'Toulouse BnB",
+    "typeLogement": "Maison avec terrasse",
+    "nombreChambres": 3,
+    "nombreSallesDeBain": 2,
+    "equipements": [
+      "Salon",
+      "Cuisine équipée",
+      "Parking gratuit"
+    ],
+    "securite": "Pas de caméras de surveillance",
+    "localisation": {
+      "distanceTamEtAdem": "15 minutes",
+      "distanceCentreVille": "20 minutes"
+    },
+    "coutTotal": 481,
+    "repartitionCoutParPersonne": 160
+  },
+  "budgetEtDepenses": {
+    "estimationsParPersonne": {
+      "hebergement": 160,
+      "peageEtEssence": 47,
+      "total": 207
+    },
+    "recommendationsBudget": "Prévoir suffisamment d'argent sur le compte courant pour les dépenses sur place",
+    "courses": {
+      "supermarchesProches": [
+        "Carrefour",
+        "Auchan"
+      ],
+      "differencesPrix": "Pas de différences notables pour 2 ou 3 personnes"
+    }
+  },
+  "activitesPrevues": {
+    "focusPrincipal": "Découverte de Toulouse et rencontre avec Tam & Adem",
+    "typeSejour": "Détente et loisirs",
+    "pointsInteret": [
+      "Place du Capitole",
+      "Basilique Saint-Sernin",
+      "Jardin Japonais"
+    ]
+  },
+  "conseilsPratiques": {
+    "planificationTrajet": [
+      "Respecter les temps de pause pour éviter la fatigue",
+      "Vérifier les itinéraires alternatifs en cas de trafic ou de travaux"
+    ],
+    "hebergement": [
+      "Arriver tôt pour récupérer les clés",
+      "Profiter de la terrasse et des équipements"
+    ],
+    "budget": [
+      "Répartir les frais communs dès le début",
+      "Faire les courses dans les supermarchés locaux"
+    ],
+    "sejour": [
+      "Explorer les spécialités culinaires locales"
+    ]
+  },
+  "detailsAVerifier": {
+    "meteo": "Consulter les prévisions pour adapter vêtements et activités",
+    "horairesCommercesAttractions": "Vérifier disponibilités pendant le séjour"
+  }
+}
