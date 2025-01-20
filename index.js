@@ -5,6 +5,7 @@ import bodyParser from 'body-parser';
 // Contrôleurs
 import chatbotController from './controllers/chatbotController.js';
 import emailController from './controllers/emailController.js';
+import chatbotControllerToulouse from "./controllers/chatbotControllerToulouse.js";
 
 const app = express();
 const PORT = 3000;
@@ -37,6 +38,7 @@ app.use(cors({
 
 // Routes
 app.post('/chatbot', chatbotController);
+app.post('/toulouse', chatbotControllerToulouse);
 app.post('/email', emailController);
 
 // Démarrage du serveur
