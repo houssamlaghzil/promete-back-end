@@ -28,9 +28,8 @@ const DEFAULT_TOKENS = 150;
 const SYSTEM_ROLE_ESTIMATE = process.env.SYSTEM_ROLE_ESTIMATE || 'system';
 const SYSTEM_CONTENT_ESTIMATE = process.env.SYSTEM_CONTENT_ESTIMATE || 'Please estimate the number of tokens.';
 
-// Configuration de l'API de Recherche Bing
-const BING_SEARCH_ENDPOINT = 'https://api.bing.microsoft.com/v7.0/search';
-const BING_API_KEY = process.env.BING_API_KEY; // Ajoutez votre clé API dans le fichier .env
+// Configuration de l'API de Recherche DuckDuckGo
+const DUCKDUCKGO_API_ENDPOINT = 'https://api.duckduckgo.com/';
 
 /******************************************************************/
 /*                        SECTION : LOGGING                       */
@@ -57,6 +56,7 @@ const logToFirebase = async (message) => {
 /*                 SECTION : CACHE MEMOIRE SIMPLE                 */
 /******************************************************************/
 const estimationCache = new Map();
+const searchCache = new Map(); // Cache pour les recherches web
 
 /******************************************************************/
 /*               SECTION : FONCTION D'ESTIMATION DES TOKENS       */
@@ -108,23 +108,45 @@ const estimateTokens = async (message) => {
 /*               SECTION : FONCTION DE RECHERCHE WEB              */
 /******************************************************************/
 /**
- * Fonction pour effectuer une recherche sur le web via l'API Bing.
+ * Fonction pour effectuer une recherche sur le web via l'API DuckDuckGo.
  * @param {string} query
  * @returns {string} Résultats de la recherche
  */
 const performWebSearch = async (query) => {
     try {
-        const response = await axios.get(BING_SEARCH_ENDPOINT, {
-            params: { q: query, textDecorations: true, textFormat: 'HTML' },
-            headers: { 'Ocp-Apim-Subscription-Key': BING_API_KEY },
+        if (searchCache.has(query)) {
+            await logToFirebase(`Récupération des résultats de recherche en cache pour la requête: ${query}`);
+            return searchCache.get(query);
+        }
+
+        await logToFirebase(`Effectuer une recherche web pour la requête: ${query}`);
+
+        const response = await axios.get(DUCKDUCKGO_API_ENDPOINT, {
+            params: {
+                q: query,
+                format: 'json',
+                no_redirect: 1,
+                no_html: 1,
+                skip_disambig: 1
+            }
         });
 
-        if (response.data.webPages && response.data.webPages.value.length > 0) {
-            const topResult = response.data.webPages.value[0];
-            return `Voici ce que j'ai trouvé sur le web concernant "${query}":\n**${topResult.name}**\n${topResult.snippet}\nLien: ${topResult.url}`;
+        let searchResults = '';
+
+        if (response.data.AbstractText) {
+            searchResults = `**${response.data.Heading}**\n${response.data.AbstractText}\nLien: ${response.data.AbstractURL}`;
+        } else if (response.data.RelatedTopics && response.data.RelatedTopics.length > 0) {
+            const topResult = response.data.RelatedTopics[0];
+            searchResults = `**${topResult.Text}**\nLien: ${topResult.FirstURL}`;
         } else {
-            return `Je n'ai trouvé aucune information sur "${query}" sur le web.`;
+            searchResults = `Je n'ai trouvé aucune information sur "${query}" sur le web.`;
         }
+
+        // Stocker les résultats dans le cache
+        searchCache.set(query, searchResults);
+
+        await logToFirebase(`Résultats de recherche obtenus: ${searchResults}`);
+        return searchResults;
     } catch (error) {
         await logToFirebase(`Erreur lors de la recherche web: ${error.message}`);
         return `Désolé, je ne peux pas effectuer de recherche en ce moment.`;
@@ -134,7 +156,7 @@ const performWebSearch = async (query) => {
 /******************************************************************/
 /*               SECTION : CONSTRUCTION DES MESSAGES SYSTEM       */
 /******************************************************************/
-const buildSystemMessages = (estimatedTokens, previousMessages, userMessage) => {
+const buildSystemMessages = (estimatedTokens, previousMessages, userMessage, webSearchResults) => {
     const SystemMessageTravelFocus = {
         role: 'system',
         content: `
@@ -175,12 +197,22 @@ const buildSystemMessages = (estimatedTokens, previousMessages, userMessage) => 
         `
     };
 
+    const SystemMessageWebResults = {
+        role: 'system',
+        content: `
+        Voici les résultats de recherche web récents que tu peux utiliser pour répondre à l'utilisateur :
+        ${webSearchResults}
+        Utilise ces informations pour fournir des réponses précises et à jour.
+        `
+    };
+
     return [
         { role: 'system', content: 'You are a helpful assistant.' },
         SystemMessageTravelFocus,
         SystemMessageLanguageRespect,
         SystemMessageConcision,
         SystemMessageBudget,
+        SystemMessageWebResults,
         ...previousMessages,
         { role: 'user', content: userMessage }
     ];
@@ -207,47 +239,37 @@ const handleChatbotMessage = async (req, res) => {
         const estimatedTokens = await estimateTokens(message);
         await logToFirebase(`Nombre de tokens estimé à utiliser: ${estimatedTokens}`);
 
-        const messagesToSend = buildSystemMessages(estimatedTokens, previousMessages, message);
+        // Effectuer une recherche web pour obtenir des informations à jour
+        const webSearchResults = await performWebSearch(message);
 
-        // Vérifier si l'utilisateur demande une recherche web
-        const triggerWords = ['recherche', 'chercher', 'trouver', 'internet', 'web'];
-        const shouldSearchWeb = triggerWords.some(word => message.toLowerCase().includes(word));
+        const messagesToSend = buildSystemMessages(estimatedTokens, previousMessages, message, webSearchResults);
 
-        let botMessageContent = '';
-
-        if (shouldSearchWeb) {
-            // Extraire la requête de recherche
-            // Ceci est une implémentation simple; pour des cas plus complexes, envisagez d'utiliser le NLP
-            const searchQuery = message.split(' ').slice(1).join(' ');
-            botMessageContent = await performWebSearch(searchQuery);
-        } else {
-            // Appel à l'API OpenAI pour obtenir la réponse
-            const response = await axios.post(
-                OPENAI_API_ENDPOINT,
-                {
-                    model: OPENAI_MODEL,
-                    messages: messagesToSend,
-                    max_tokens: estimatedTokens,
-                    temperature: 0.7,
-                    top_p: 0.9,
+        // Appel à l'API OpenAI pour obtenir la réponse
+        const response = await axios.post(
+            OPENAI_API_ENDPOINT,
+            {
+                model: OPENAI_MODEL,
+                messages: messagesToSend,
+                max_tokens: estimatedTokens,
+                temperature: 0.7,
+                top_p: 0.9,
+            },
+            {
+                headers: {
+                    'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+                    'Content-Type': 'application/json',
                 },
-                {
-                    headers: {
-                        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
-                        'Content-Type': 'application/json',
-                    },
-                    timeout: 10000, // 10 secondes
-                }
-            );
-
-            botMessageContent = response.data.choices[0].message.content;
-
-            if (response.data.usage) {
-                const usage = response.data.usage;
-                await logToFirebase(
-                    `Tokens utilisés: prompt=${usage.prompt_tokens}, completion=${usage.completion_tokens}, total=${usage.total_tokens}`
-                );
+                timeout: 10000, // 10 secondes
             }
+        );
+
+        const botMessageContent = response.data.choices[0].message.content;
+
+        if (response.data.usage) {
+            const usage = response.data.usage;
+            await logToFirebase(
+                `Tokens utilisés: prompt=${usage.prompt_tokens}, completion=${usage.completion_tokens}, total=${usage.total_tokens}`
+            );
         }
 
         const botMessage = {
