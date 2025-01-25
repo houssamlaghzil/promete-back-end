@@ -20,6 +20,8 @@ const allowedOrigins = [
     'https://www.xn--mon-projet-numrique-ozb.fr',
     'https://toulouse-adventure.promete-it.fr',
     'https://api.promete-it.fr',
+    'https://testnull-edcb5.web.app',
+    'https://www.testnull-edcb5.web.app',
 ];
 
 app.use(cors({

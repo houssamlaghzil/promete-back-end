@@ -18,6 +18,7 @@ const handleOrth = async (req, res) => {
     else if (value !== orth && value.length === orth.length) {
         // verifier avec la fonction ScoreOrth
         let score = ScoreOrth(value, orth);
+        console.log("score " + score);
         switch (score) {
             case score >= 70:
                 res.status(200).json({ message: "Vous avez trouvé une orthographe proche" });
