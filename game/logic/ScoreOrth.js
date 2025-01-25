@@ -19,7 +19,7 @@ function ScoreOrth(value, orth) {
             }
         }
         scoreothlength = (score / value.length) * 100;
-        console.log("scoreothlength " + scoreothlength);
+        console.log('scoreothlength ' + scoreothlength);
     }
 
     //Maintenant on doit vérifier la quantité de lettre similaire de ces 2 variables Et retourner une valeur en pourcentage
@@ -31,7 +31,7 @@ function ScoreOrth(value, orth) {
             scoreothsimilarity += 0;
         }
         scoreothsimilarity = (scoreothsimilarity / value.length) * 100;
-        console.log("scoreothsimilarity " + scoreothsimilarity);
+        console.log('scoreothsimilarity ' + scoreothsimilarity);
     }
     return scoreoth = scoreothlength * scoreothsimilarity;
 }
