@@ -16,10 +16,10 @@ const handleOrth = async (req, res) => {
         let score = ScoreOrth(value, orth);
         console.log("score " + score);
         switch (score) {
-            case score >= 70:
+            case score >= 50:
                 res.status(200).json({ message: "Vous avez trouvé une orthographe proche" });
                 break;
-            case score < 70:
+            case score < 50:
                 res.status(200).json({ message: "Vous avez trouvé une orthographe pas assez proche" });
                 break;
             default:
