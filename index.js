@@ -6,6 +6,7 @@ import bodyParser from 'body-parser';
 import chatbotController from './controllers/chatbotController.js';
 import emailController from './controllers/emailController.js';
 import chatbotControllerToulouse from "./controllers/chatbotControllerToulouse.js";
+import Orth from "./game/logic/Orth.js";
 
 const app = express();
 const PORT = 3000;
@@ -41,6 +42,7 @@ app.use(cors({
 app.post('/chatbot', chatbotController);
 app.post('/toulouse', chatbotControllerToulouse);
 app.post('/email', emailController);
+app.post('/orth', Orth);
 
 // Démarrage du serveur
 app.listen(PORT, () => {
