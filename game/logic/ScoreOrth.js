@@ -7,6 +7,7 @@ function ScoreOrth(value, orth) {
     value = value.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
     orth = orth.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
 
+
     //Si les 2 variables sont identiques alors le score est de 100%
     let scoreothlength = 0;
     if (value === orth) {
