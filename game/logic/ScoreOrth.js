@@ -7,12 +7,12 @@ function ScoreOrth(value, orth) {
     const valueWords = value.split(/\s+/);
     const orthWords = orth.split(/\s+/);
 
-    // Vérifie si chaque mot de orth est présent dans value
-    const allWordsExist = orthWords.every(word => valueWords.includes(word));
+    // Vérifie si au moins un mot de orth est présent dans value
+    const anyWordExists = orthWords.some(word => valueWords.includes(word));
 
-    if (allWordsExist) {
-        console.log('Tous les mots de orth sont présents dans value. Score: 100');
-        return 100; // Retourne directement 100 si tous les mots sont présents
+    if (anyWordExists) {
+        console.log('Au moins un mot de orth est présent dans value. Score: 100');
+        return 100; // Retourne directement 100 si au moins un mot est présent
     }
 
     // --- Calcul du score positionnel (lengthScore) ---
