@@ -11,6 +11,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
 
 const signupController = async (req, res) => {
     const { email, password, promoCode, paymentIntentId } = req.body;
+    console.log('signupController -> req.body', req.body);
 
     if (!email || !password || !promoCode || !paymentIntentId) {
         return res.status(400).json({ error: 'Tous les champs sont requis.' });
@@ -52,6 +53,7 @@ const signupController = async (req, res) => {
         if (error.code === 'auth/email-already-exists') {
             return res.status(400).json({ error: 'L\'email est déjà utilisé.' });
         }
+        console.error('Erreur lors de l\'inscription:', error);
         res.status(500).json({ error: 'Erreur interne du serveur.' });
     }
 };
