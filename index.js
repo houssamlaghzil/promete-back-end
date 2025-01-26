@@ -1,15 +1,23 @@
+// backend/index.js
 import express from 'express';
 import cors from 'cors';
 import bodyParser from 'body-parser';
+import dotenv from 'dotenv';
 
-// Contrôleurs
+// Importer les contrôleurs existants
 import chatbotController from './controllers/chatbotController.js';
 import emailController from './controllers/emailController.js';
 import chatbotControllerToulouse from "./controllers/chatbotControllerToulouse.js";
 import Orth from "./game/logic/Orth.js";
 
+// Importer les nouveaux contrôleurs
+import paymentController from './controllers/paymentController.js';
+import signupController from './controllers/signupController.js';
+
+dotenv.config();
+
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 // Middleware pour parser le corps en JSON
 app.use(bodyParser.json());
@@ -24,6 +32,7 @@ const allowedOrigins = [
     'https://www.testnull-edcb5.web.app',
 ];
 
+// Configurer CORS
 app.use(cors({
     origin: function (origin, callback) {
         // Autorise les requêtes sans origine (ex: Postman)
@@ -40,13 +49,22 @@ app.use(cors({
     credentials: true, // Si vous utilisez des cookies ou des headers d'autorisation
 }));
 
-// Routes
+// Routes existantes
 app.post('/chatbot', chatbotController);
 app.post('/toulouse', chatbotControllerToulouse);
 app.post('/email', emailController);
 app.post('/orth', Orth);
 
+// Nouvelles routes pour l'inscription
+app.post('/create-payment-intent', paymentController);
+app.post('/signup', signupController);
+
+// Route de santé pour vérifier que le serveur fonctionne
+app.get('/', (req, res) => {
+    res.send('Serveur Express en cours d\'exécution.');
+});
+
 // Démarrage du serveur
 app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
+    console.log(`Serveur en cours d'exécution sur le port ${PORT}`);
 });
