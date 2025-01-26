@@ -1,6 +1,6 @@
 // backend/controllers/signupController.js
 import Stripe from 'stripe';
-import admin from '../admin.js';
+import admin from './../admin.js';
 import dotenv from 'dotenv';
 
 dotenv.config();
