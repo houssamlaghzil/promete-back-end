@@ -1,10 +1,9 @@
 function ScoreOrth(value, orth) {
-    // Retrait des caractères non alphanumériques, mise en minuscule
+    // Nettoyage des caractères spéciaux mais conservation des espaces
     value = value.replace(/[^a-zA-Z0-9\s]/g, '').toLowerCase();
     orth = orth.replace(/[^a-zA-Z0-9\s]/g, '').toLowerCase();
 
     // --- Vérification mot par mot ---
-    // On divise les chaînes en mots
     const valueWords = value.split(/\s+/);
     const orthWords = orth.split(/\s+/);
 
@@ -13,37 +12,46 @@ function ScoreOrth(value, orth) {
 
     if (allWordsExist) {
         console.log('Tous les mots de orth sont présents dans value. Score: 100');
-        return 100; // Si tous les mots sont présents, on retourne directement 100
+        return 100; // Retourne directement 100 si tous les mots sont présents
     }
 
     // --- Calcul du score positionnel (lengthScore) ---
     let lengthScore = 0;
     if (value === orth) {
-        // Identiques => 100%
-        lengthScore = 100;
-    } else if (value.length === orth.length) {
-        // Même longueur => on compte les caractères identiques aux mêmes positions
-        let matches = 0;
-        for (let i = 0; i < value.length; i++) {
-            if (value[i] === orth[i]) {
-                matches++;
-            }
-        }
-        lengthScore = (matches / value.length) * 100;
+        lengthScore = 100; // Identiques => 100%
     } else {
-        // Longueurs différentes => on peut considérer 0, ou un autre calcul
-        lengthScore = 0;
+        // On compare en ignorant les positions des espaces
+        const valueNoSpaces = value.replace(/\s+/g, '');
+        const orthNoSpaces = orth.replace(/\s+/g, '');
+
+        if (valueNoSpaces === orthNoSpaces) {
+            lengthScore = 100; // Les chaînes sont identiques si on ignore les espaces
+        } else if (valueNoSpaces.length === orthNoSpaces.length) {
+            // Comparaison caractère par caractère
+            let matches = 0;
+            for (let i = 0; i < valueNoSpaces.length; i++) {
+                if (valueNoSpaces[i] === orthNoSpaces[i]) {
+                    matches++;
+                }
+            }
+            lengthScore = (matches / valueNoSpaces.length) * 100;
+        } else {
+            lengthScore = 0; // Longueurs différentes => score 0
+        }
     }
 
     // --- Calcul du score de similitude globale (similarityScore) ---
-    // Combien de caractères de value sont présents, peu importe la position, dans orth
+    // On compare les caractères peu importe leur position
     let totalMatches = 0;
-    for (let i = 0; i < value.length; i++) {
-        if (orth.includes(value[i])) {
+    const valueChars = [...value.replace(/\s+/g, '')];
+    const orthChars = [...orth.replace(/\s+/g, '')];
+
+    for (let char of valueChars) {
+        if (orthChars.includes(char)) {
             totalMatches++;
         }
     }
-    let similarityScore = (totalMatches / value.length) * 100;
+    let similarityScore = (totalMatches / valueChars.length) * 100;
 
     // --- Combinaison des deux scores ---
     let finalScore = (lengthScore * similarityScore) / 100;
