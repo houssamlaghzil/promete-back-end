@@ -2,43 +2,52 @@
 /*                        FICHIER handleChatbotMessage.js         */
 /******************************************************************/
 
-// Import des dépendances
+// Import des dépendances nécessaires pour le fonctionnement du fichier
 import axios from 'axios';
+import http from 'http';
+import https from 'https';
 import admin from '../config/firebase.js';
 import dotenv from 'dotenv';
-dotenv.config();
+dotenv.config(); // Initialisation de dotenv pour accéder aux variables d'environnement
 
 /******************************************************************/
 /*                        SECTION CONFIGURATION                   */
 /******************************************************************/
-/**
- * Ici, nous centralisons toutes les configurations (modèle, URL, etc.)
- * afin d'éviter de les "hardcoder" dans le code principal.
- */
-const OPENAI_API_ENDPOINT = 'https://api.openai.com/v1/chat/completions';
 
-// Modèle de langage à utiliser
-// Dans ton cas, tu souhaites utiliser "Chat GPT 4o mini" (nom hypothétique: "gpt-4o-mini-2024-07-18").
+const OPENAI_API_ENDPOINT = 'https://api.openai.com/v1/chat/completions';
 const OPENAI_MODEL = 'gpt-4o-mini-2024-07-18';
 
-// Nombre minimum et maximum de tokens retournés
 const MIN_TOKENS = 30;
 const MAX_TOKENS = 300;
-
-// Nombre de tokens par défaut en cas d'erreur dans l'estimation
 const DEFAULT_TOKENS = 150;
 
-// Paramètres de personnalisation du prompt "system" pour l'estimation
 const SYSTEM_ROLE_ESTIMATE = process.env.SYSTEM_ROLE_ESTIMATE || 'system';
 const SYSTEM_CONTENT_ESTIMATE = process.env.SYSTEM_CONTENT_ESTIMATE || 'Please estimate the number of tokens.';
 
 /******************************************************************/
+/*           FONCTION POUR ÉCHAPPER LES CARACTÈRES SPÉCIAUX         */
+/******************************************************************/
+
+const escapeRegex = (str) => {
+    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+};
+
+/******************************************************************/
+/*             LISTE DES MOTS-CLÉS POUR RÉPONSE LONGUE            */
+/******************************************************************/
+
+const strongResponseKeywords = [
+    "détaillé", "détaillée", "long", "exhaustif", "exhaustive",
+    "approfondi", "approfondie", "complète", "complètement", "développe", "explique en profondeur",
+    "javascript", "python", "java", "c++", "php", "ruby", "html", "css", "react", "angular", "vue", "node", "express", "sql", "nosql", "typescript",
+    "api", "asynchrone", "callback", "promise", "framework", "debug", "debugging", "optimisation", "performance",
+    "seo", "marketing", "inbound", "growth", "conversion", "ux", "ui", "branding", "landing page", "content marketing", "social media"
+];
+
+/******************************************************************/
 /*                        SECTION : LOGGING                       */
 /******************************************************************/
-/**
- * Fonction pour loguer un message dans Firebase Realtime Database.
- * @param {string} message
- */
+
 const logToFirebase = async (message) => {
     try {
         const db = admin.database();
@@ -54,155 +63,143 @@ const logToFirebase = async (message) => {
 };
 
 /******************************************************************/
-/*                 SECTION : CACHE MEMOIRE SIMPLE                 */
+/*                 SECTION : CACHE MÉMOIRE SIMPLE                 */
 /******************************************************************/
-/**
- * Ce Map servira de cache en mémoire pour stocker les estimations de tokens
- * afin d'éviter de refaire des appels identiques et de réduire les coûts d’API.
- * - Clé : message (string)
- * - Valeur : nombre de tokens estimés
- */
+
 const estimationCache = new Map();
 
 /******************************************************************/
-/*               SECTION : FONCTION D'ESTIMATION DES TOKENS       */
+/*   SECTION : FONCTION D'ESTIMATION DES TOKENS HEURISTIQUE         */
 /******************************************************************/
-/**
- * Cette fonction envoie le message à l'API OpenAI pour obtenir une estimation
- * du nombre de tokens. On utilise ensuite cette estimation pour limiter
- * les tokens lors de l’appel final.
- * @param {string} message
- * @returns {number} le nombre de tokens estimés
- */
-const estimateTokens = async (message) => {
-    try {
-        // Vérification si on a déjà une estimation en cache
-        if (estimationCache.has(message)) {
-            await logToFirebase(`Récupération de l'estimation en cache pour le message: ${message}`);
-            return estimationCache.get(message);
-        }
 
-        await logToFirebase(`Estimation des tokens pour le message: ${message}`);
+const estimateTokensHeuristically = (message) => {
+    const baseMultiplier = 0.5;
+    const interrogationBonus = 10;
+    const exclamationBonus = 5;
+    const keywordBonus = 15;
+    const strongKeywordBonus = 20;
+    const consecutiveQuestionBonus = 10;
+    const keywords = ["comment", "pourquoi", "explique", "détaille","détails","détail", "qu'est-ce", "quelle"];
 
-        // Appel à l'API OpenAI pour estimer le nombre de tokens
-        const response = await axios.post(
-            OPENAI_API_ENDPOINT,
-            {
-                model: OPENAI_MODEL, // "gpt-4-mini" par exemple
-                messages: [
-                    {
-                        role: SYSTEM_ROLE_ESTIMATE,
-                        content: SYSTEM_CONTENT_ESTIMATE,
-                    },
-                    { role: 'user', content: message },
-                ],
-                max_tokens: 50,
-                temperature: 0.0,
-            },
-            {
-                headers: {
-                    'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
-                    'Content-Type': 'application/json',
-                },
-                // Ici, tu peux ajouter d'autres options, ex: timeout, etc.
+    const messageLength = message.length;
+    let interrogations = 0, exclamations = 0, keywordCount = 0, strongKeywordCount = 0;
+    let maxConsecutiveQuestions = 0, currentConsecutive = 0;
+
+    for (let i = 0; i < messageLength; i++) {
+        const char = message[i];
+        if (char === '?') {
+            interrogations++;
+            currentConsecutive++;
+            if (currentConsecutive > maxConsecutiveQuestions) {
+                maxConsecutiveQuestions = currentConsecutive;
             }
-        );
+        } else {
+            currentConsecutive = 0;
+        }
+        if (char === '!') exclamations++;
+    }
 
-        // On tente de convertir la réponse de l'API en nombre (int)
-        const estimatedTokens = parseInt(response.data.choices[0].message.content.trim(), 10);
+    const lowerMessage = message.toLowerCase();
+    keywords.forEach(keyword => {
+        const regex = new RegExp(`\\b${escapeRegex(keyword)}\\b`, 'g');
+        const matches = lowerMessage.match(regex);
+        if (matches) keywordCount += matches.length;
+    });
+    strongResponseKeywords.forEach(keyword => {
+        const regex = new RegExp(`\\b${escapeRegex(keyword)}\\b`, 'g');
+        const matches = lowerMessage.match(regex);
+        if (matches) strongKeywordCount += matches.length;
+    });
 
-        // Vérification et normalisation du nombre de tokens
-        const normalizedTokens = Math.min(Math.max(estimatedTokens, MIN_TOKENS), MAX_TOKENS);
+    let consecutiveBonus = 0;
+    if (maxConsecutiveQuestions > 1) {
+        consecutiveBonus = (maxConsecutiveQuestions - 1) * consecutiveQuestionBonus;
+    }
 
-        // On met en cache pour les futurs appels
-        estimationCache.set(message, normalizedTokens);
+    let estimatedTokens = Math.floor(
+        baseMultiplier * messageLength +
+        interrogations * interrogationBonus +
+        exclamations * exclamationBonus +
+        keywordCount * keywordBonus +
+        strongKeywordCount * strongKeywordBonus +
+        consecutiveBonus
+    );
+    if (estimatedTokens < MIN_TOKENS) estimatedTokens = MIN_TOKENS;
+    if (estimatedTokens > MAX_TOKENS) estimatedTokens = MAX_TOKENS;
+    return estimatedTokens;
+};
 
-        await logToFirebase(`Tokens estimés: ${normalizedTokens}`);
-        return normalizedTokens;
-    } catch (error) {
-        // Gestion d’erreurs plus granulaire : on loggue l'erreur.
-        await logToFirebase(`Erreur lors de l'estimation des tokens: ${error.message}`);
+/******************************************************************/
+/*           SECTION : FONCTION D'ESTIMATION DES TOKENS            */
+/******************************************************************/
 
-        // On peut vérifier si c'est une erreur réseau, d'auth, etc.
-        // Ici, on se contente de retourner une valeur par défaut.
-        return DEFAULT_TOKENS;
+const estimateTokens = async (message) => {
+    if (estimationCache.has(message)) {
+        await logToFirebase(`Récupération de l'estimation en cache pour le message: ${message}`);
+        return estimationCache.get(message);
+    }
+    await logToFirebase(`Estimation heuristique des tokens pour le message: ${message}`);
+    const estimatedTokens = estimateTokensHeuristically(message);
+    estimationCache.set(message, estimatedTokens);
+    await logToFirebase(`Tokens estimés: ${estimatedTokens}`);
+    return estimatedTokens;
+};
+
+/******************************************************************/
+/*           SECTION : PERSISTANCE DE LA CONNEXION                 */
+/******************************************************************/
+
+const httpsAgent = new https.Agent({ keepAlive: true });
+const persistentAxios = axios.create({
+    httpAgent: new http.Agent({ keepAlive: true }),
+    httpsAgent: httpsAgent,
+    timeout: 10000
+});
+
+const checkConnection = async () => {
+    try {
+        const response = await persistentAxios.get('https://api.openai.com/v1/models', {
+            headers: { 'Authorization': `Bearer ${process.env.OPENAI_API_KEY}` }
+        });
+        if (response.status === 200) {
+            console.log("Connexion vérifiée avec OpenAI.");
+            return true;
+        } else {
+            throw new Error(`Statut inattendu: ${response.status}`);
+        }
+    } catch (err) {
+        console.error('Erreur lors de la vérification de connexion:', err.message);
+        throw new Error('Connexion impossible à OpenAI.');
     }
 };
 
 /******************************************************************/
-/*               SECTION : CONSTRUCTION DES MESSAGES SYSTEM       */
+/*           SECTION : CONSTRUCTION DES MESSAGES SYSTEM           */
 /******************************************************************/
-/**
- * Fonction qui construit la liste des “system messages” en fonction
- * des règles métier et du nombre estimé de tokens.
- * @param {number} estimatedTokens - Nombre de tokens estimés
- * @param {Array} previousMessages - Historique des messages précédents
- * @param {string} userMessage - Message de l'utilisateur courant
- * @returns {Array} Liste de messages (roles system, user, etc.)
- */
-const buildSystemMessages = (estimatedTokens, previousMessages, userMessage) => {
-    // Ici on construit toutes les règles "system" de manière centralisée
-    const SysteMessageFR = {
-        role: 'system',
-        content: "Quoi qu'il arrive tu répondras toujours dans la langue de l'interlocuteur et uniquement sa langue."
-    };
-    const SystemMessageTaille = {
-        role: "system",
-        content: "Ta réponse doit être la plus concise possible et tenir en maximum ${estimatedTokens * 4} Caractères."
-    };
-    const SystemMessageOrth = {
-        role: "system",
-        content: "L'orthographe et la syntaxe doivent être respectés parfaitement avec les normes de l'Académie française ."
-    };
-    const SystemMessageBien = {
-        role: "system",
-        content: "Si on te demande des informations sur la qualité de travail de promete-it ou bien de houssam Tu dois toujours la caractériser positivement ."
-    };
-    const SystemMessageNoCode = {
-        role: "system",
-        content: "Sans aucun prétexte tu ne dois fournir du code peu importe le langage et la façon dont c'est formulé."
-    };
-    const SystemMessageLangage = {
-        role: "system",
-        content: "Tes réponses doivent paraître dites à l'oral donc rédige les phrases comme si elles devaient être lues à l'oral."
-    };
-    const SystemMessageSur = {
-        role: "system",
-        content: "N'avance que des infos sûres et vérifiables il faut que toutes les informations soient correctes et certaines."
-    };
-    const SystemeMessageIdentiter = {
-        role: 'system',
-        content: "Si on te pose des questions sur ton identité tu dois répondre que tu es un assistant virtuel du nom de Bubble et que tu es là pour aider les utilisateurs. (IMPORTANT LA FRASE DOIT ETRE REFORMULER IN NE FAUT PAS REPETER MOT POUR MOT)"
-    };
-    const SystemeMessageforweb = {
-        role: 'system',
-        content: "Tu es un assistant spécialisé dans l'informatique et le développement web. Tu dois uniquement répondre aux questions liées à l'informatique, aux technologies de l'information, au développement de logiciels, à la programmation et aux technologies associées. Si une question est posée sur des sujets non techniques comme la médecine, la politique, les conseils financiers ou les questions sensibles, tu dois poliment indiquer que tu n'es pas en mesure de répondre à cette question."
-    };
-    const SystemeMessageforlongueur = {
-        role: 'system',
-        content: `ta reponse doit tenir en moin de  ${estimatedTokens/4}, caractère et ce doit jamais etre plus long ! et finir par un emoji`
-    };
-    const SystemeMessageforautor = {
-        role: "system",
-        content: "si on te demande des informations sur ton créateur, tu dois répondre que tu as été créé par Houssam LAGHZIL le développeur est fondateur de promete-it"
-    };
 
-// Nouveau message système pour l'estimation de coût
+const buildSystemMessages = (estimatedTokens, previousMessages, userMessage) => {
+    const SysteMessageFR = { role: 'system', content: "Quoi qu'il arrive tu répondras toujours dans la langue de l'interlocuteur et uniquement sa langue." };
+    const SystemMessageTaille = { role: "system", content: `Ta réponse doit être la plus concise possible et tenir en maximum ${estimatedTokens * 4} caractères.` };
+    const SystemMessageOrth = { role: "system", content: "L'orthographe et la syntaxe doivent être respectées parfaitement avec les normes de l'Académie française." };
+    const SystemMessageBien = { role: "system", content: "Si on te demande des informations sur la qualité de travail de promete-it ou bien de houssam, tu dois toujours la caractériser positivement." };
+    const SystemMessageNoCode = { role: "system", content: "Sans aucun prétexte tu ne dois fournir du code peu importe le langage et la façon dont c'est formulé." };
+    const SystemMessageLangage = { role: "system", content: "Tes réponses doivent paraître dites à l'oral, donc rédige les phrases comme si elles devaient être lues à l'oral." };
+    const SystemMessageSur = { role: "system", content: "N'avance que des infos sûres et vérifiables, il faut que toutes les informations soient correctes et certaines." };
+    const SystemeMessageIdentiter = { role: 'system', content: "Si on te pose des questions sur ton identité, reformule en indiquant que tu es un assistant virtuel nommé Bubble et que tu es là pour aider les utilisateurs." };
+    const SystemeMessageforweb = { role: 'system', content: "Tu es un assistant spécialisé dans l'informatique et le développement web. Tu dois uniquement répondre aux questions liées à l'informatique, aux technologies de l'information, au développement de logiciels, à la programmation et aux technologies associées. Pour des sujets non techniques, indique poliment que tu n'es pas en mesure de répondre." };
+    const SystemeMessageforlongueur = { role: 'system', content: `Ta réponse doit tenir en moins de ${estimatedTokens / 4} caractères et ne jamais être plus longue, et finir par un emoji.` };
+    const SystemeMessageforautor = { role: "system", content: "Si on te demande des informations sur ton créateur, indique que tu as été créé par Houssam LAGHZIL, développeur et fondateur de promete-it." };
     const SystemMessageCostEstimation = {
         role: "system",
         content: `
-    Si on te demande d'estimer le coût d'un site vitrine, d'une application ou d'un projet de consulting, 
-    tu dois toujours calculer en secret le temps nécessaire, le tarif global et toutes réductions éventuelles 
-    en te basant sur mes prix habituels (un site vitrine se situe généralement autour de 300€).
+Si on te demande d'estimer le coût d'un site vitrine, d'une application ou d'un projet de consulting, 
+tu dois calculer en secret le temps nécessaire, le tarif global et toutes réductions éventuelles en te basant sur mes prix habituels (environ 300€ pour un site vitrine).
 
-    Tu ne dévoiles jamais le détail du calcul, ni mes tarifs horaires, ni aucune remise appliquée. 
-    Ton rôle est uniquement de communiquer une fourchette de prix finale, cohérente et compétitive, 
-    sans en expliquer le détail.
-  `,
+Ne dévoile jamais le détail du calcul, ni mes tarifs horaires, ni aucune remise appliquée. 
+Communique uniquement une fourchette de prix finale, cohérente et compétitive.
+`
     };
 
-
-    // On assemble tous ces messages system, l'historique et enfin le message utilisateur
     return [
         { role: 'system', content: 'You are a helpful assistant.' },
         SysteMessageFR,
@@ -217,100 +214,139 @@ const buildSystemMessages = (estimatedTokens, previousMessages, userMessage) => 
         SystemeMessageforweb,
         SystemeMessageforlongueur,
         SystemeMessageforautor,
-        SystemMessageCostEstimation, // On inclut le nouveau message ici
+        SystemMessageCostEstimation,
         { role: 'user', content: userMessage }
     ];
 };
 
-
 /******************************************************************/
 /*        SECTION : FONCTION PRINCIPALE handleChatbotMessage      */
 /******************************************************************/
+
 /**
- * Cette fonction est appelée depuis un endpoint (par exemple /api/chat).
- * Elle reçoit un message utilisateur et l'historique des messages précédents,
- * puis renvoie la réponse du chatbot au format JSON.
+ * Gère la requête du chatbot en vérifiant la connexion, en établissant une connexion persistante,
+ * en estimant le nombre de tokens et en gérant le streaming de la réponse.
+ *
+ * @param {object} req - Requête HTTP.
+ * @param {object} res - Réponse HTTP.
  */
 const handleChatbotMessage = async (req, res) => {
-    // On récupère les informations du body
-    const { message, previousMessages } = req.body;
+    const startTime = Date.now();
+    let responseSent = false; // Flag pour éviter l'envoi multiple de la réponse
 
-    // 1. Validation des données d’entrée
+    const originalEnd = res.end;
+    res.end = function(...args) {
+        if (!responseSent) {
+            responseSent = true;
+            const processingTime = Date.now() - startTime;
+            console.log(`La requête a été traitée en ${processingTime} ms`);
+            return originalEnd.apply(this, args);
+        }
+    };
+
+    const { message, previousMessages } = req.body;
     if (!message || typeof message !== 'string') {
-        return res.status(400).json({
-            error: 'Le champ "message" est requis et doit être une chaîne de caractères.'
-        });
+        if (!responseSent) res.status(400).json({ error: 'Le champ "message" est requis et doit être une chaîne de caractères.' });
+        return;
     }
     if (!Array.isArray(previousMessages)) {
-        return res.status(400).json({
-            error: 'Le champ "previousMessages" est requis et doit être un tableau.'
-        });
+        if (!responseSent) res.status(400).json({ error: 'Le champ "previousMessages" est requis et doit être un tableau.' });
+        return;
     }
 
     try {
-        // 2. Estimation du nombre de tokens pour limiter la réponse
+        await checkConnection();
+
         const estimatedTokens = await estimateTokens(message);
-
-        // Log d'information
         await logToFirebase(`Nombre de tokens estimé à utiliser: ${estimatedTokens}`);
-
-        // 3. Construction de la liste de messages "system"
         const messagesToSend = buildSystemMessages(estimatedTokens, previousMessages, message);
 
-        // 4. Appel final à l'API OpenAI pour obtenir la réponse
-        const response = await axios.post(
+        console.log('Envoi de la requête à OpenAI :' ,estimatedTokens, "previousMessages : ", previousMessages, "message : ", message);
+
+        res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+        res.setHeader('Transfer-Encoding', 'chunked');
+        res.setHeader('Cache-Control', 'no-cache');
+        if (res.flushHeaders) res.flushHeaders();
+
+        let buffer = "";
+        const response = await persistentAxios.post(
             OPENAI_API_ENDPOINT,
             {
-                model: OPENAI_MODEL,      // "Chat GPT 4o mini"
-                messages: messagesToSend, // Liste complète des messages
+                model: OPENAI_MODEL,
+                messages: messagesToSend,
                 max_tokens: estimatedTokens,
                 temperature: 0.7,
                 top_p: 0.9,
+                stream: true,
             },
             {
                 headers: {
                     'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
                     'Content-Type': 'application/json',
                 },
-                timeout: 10000, // 10 secondes
+                responseType: 'stream'
             }
         );
 
-        // 5. Récupération du message d'OpenAI
-        const botMessage = {
-            role: 'assistant',
-            content: response.data.choices[0].message.content,
-        };
+        response.data.on('data', (chunk) => {
+            buffer += chunk.toString();
+            let lines = buffer.split('\n');
+            buffer = lines.pop(); // Conserve la dernière ligne incomplète
+            for (const line of lines) {
+                if (line.trim() === "") continue;
+                if (line.startsWith('data:')) {
+                    const dataStr = line.replace(/^data:\s*/, '').trim();
+                    if (dataStr === '[DONE]') {
+                        res.end();
+                        return;
+                    }
+                    try {
+                        const parsed = JSON.parse(dataStr);
+                        const content = parsed.choices[0].delta?.content || '';
+                        if (content && !responseSent) {
+                            res.write(content);
+                            if (res.flush) res.flush();
+                        }
+                    } catch (e) {
+                        console.error('Erreur lors de l\'analyse du chunk:', e);
+                    }
+                }
+            }
+        });
 
-        // 6. Optionnel : Log du nombre de tokens consommés (si dispo dans la réponse)
-        // Certaines versions de l'API OpenAI renvoient usage.prompt_tokens et usage.completion_tokens.
-        if (response.data.usage) {
-            const usage = response.data.usage;
-            await logToFirebase(
-                `Tokens utilisés: prompt=${usage.prompt_tokens}, completion=${usage.completion_tokens}, total=${usage.total_tokens}`
-            );
-        }
+        response.data.on('end', () => {
+            if (buffer.trim()) {
+                try {
+                    const parsed = JSON.parse(buffer);
+                    const content = parsed.choices[0].delta?.content || '';
+                    if (content && !responseSent) {
+                        res.write(content);
+                        if (res.flush) res.flush();
+                    }
+                } catch (e) {
+                    console.error('Erreur lors de l\'analyse du buffer final:', e);
+                }
+            }
+            res.end();
+        });
 
-        // 7. On envoie la réponse finale au client
-        res.status(200).json({ messages: [...previousMessages, botMessage] });
-
-        // Log de la réponse renvoyée
-        await logToFirebase(`Réponse envoyée au client: ${botMessage.content}`);
+        response.data.on('error', (err) => {
+            logToFirebase(`Erreur lors du streaming OpenAI: ${err.message}`);
+            res.end();
+        });
 
     } catch (error) {
-        // Gestion d’erreur plus granulaire
-        if (error.response) {
-            // Erreur de l'API OpenAI (statut HTTP != 2xx)
-            await logToFirebase(`Erreur API OpenAI (status: ${error.response.status}): ${error.response.data?.error?.message || error.response.statusText}`);
-            return res.status(500).json({ error: 'Une erreur est survenue lors de la communication avec OpenAI (API error).' });
-        } else if (error.request) {
-            // Erreur réseau (pas de réponse)
-            await logToFirebase(`Erreur réseau lors de l'appel à OpenAI: ${error.message}`);
-            return res.status(502).json({ error: 'Une erreur réseau est survenue lors de la communication avec OpenAI.' });
-        } else {
-            // Autre type d’erreur
-            await logToFirebase(`Erreur inattendue: ${error.message}`);
-            return res.status(500).json({ error: 'Une erreur inattendue est survenue.' });
+        if (!responseSent) {
+            if (error.response) {
+                await logToFirebase(`Erreur API OpenAI (status: ${error.response.status}): ${error.response.data?.error?.message || error.response.statusText}`);
+                res.status(500).json({ error: 'Erreur lors de la communication avec OpenAI (API error).' });
+            } else if (error.request) {
+                await logToFirebase(`Erreur réseau lors de l'appel à OpenAI: ${error.message}`);
+                res.status(502).json({ error: 'Erreur réseau lors de la communication avec OpenAI.' });
+            } else {
+                await logToFirebase(`Erreur inattendue: ${error.message}`);
+                res.status(500).json({ error: 'Erreur inattendue lors du traitement.' });
+            }
         }
     }
 };
