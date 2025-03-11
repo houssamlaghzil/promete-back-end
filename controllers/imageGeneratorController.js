@@ -35,7 +35,7 @@ const logToFirebase = async (message) => {
 /******************************************************************/
 const FLUX_API_ENDPOINT = 'https://api.us1.bfl.ai/v1/flux-pro-1.1';
 const OPENAI_API_ENDPOINT = 'https://api.openai.com/v1/chat/completions';
-const OPENAI_MODEL = 'gpt-4o-mini'; // Vous pouvez adapter si besoin
+const OPENAI_MODEL = 'gpt-4o-mini-2024-07-18'; // Vous pouvez adapter si besoin
 const DEFAULT_IMAGE_SIZE = { width: 640, height: 480 }; // Taille par défaut
 
 /******************************************************************/
