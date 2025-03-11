@@ -14,6 +14,9 @@ import Orth from "./game/logic/Orth.js";
 import paymentController from './controllers/paymentController.js';
 import signupController from './controllers/signupController.js';
 
+// Nouveau contrôleur pour la génération d'images
+import imageGeneratorController from './controllers/imageGeneratorController.js';
+
 dotenv.config();
 
 const app = express();
@@ -58,6 +61,9 @@ app.post('/orth', Orth);
 // Nouvelles routes pour l'inscription
 app.post('/create-payment-intent', paymentController);
 app.post('/signup', signupController);
+
+// Nouvelle route pour la génération d'images
+app.post('/generate-image', imageGeneratorController);
 
 // Route de santé pour vérifier que le serveur fonctionne
 app.get('/', (req, res) => {
