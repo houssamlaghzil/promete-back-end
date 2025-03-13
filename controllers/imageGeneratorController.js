@@ -12,17 +12,13 @@ dotenv.config();
 /******************************************************************/
 /*                        SECTION : LOGGING                       */
 /******************************************************************/
-/**
- * Fonction pour loguer un message dans Firebase Realtime Database.
- * @param {string} message
- */
 const logToFirebase = async (message) => {
     try {
         const db = admin.database();
         const ref = db.ref('logs');
         await ref.push({
             message: message,
-            timestamp: admin.database.ServerValue.TIMESTAMP
+            timestamp: admin.database.ServerValue.TIMESTAMP,
         });
         console.log('Log enregistré dans Firebase:', message);
     } catch (error) {
@@ -31,21 +27,42 @@ const logToFirebase = async (message) => {
 };
 
 /******************************************************************/
-/*                        SECTION : CONFIGURATION                   */
+/*         SECTION : CONFIGURATION DES MODÈLES FLUX                */
 /******************************************************************/
-const FLUX_API_ENDPOINT = 'https://api.us1.bfl.ai/v1/flux-pro-1.1';
+const FLUX_MODELS = {
+    "flux-schnell": {
+        endpoint: "https://api.us1.bfl.ai/v1/flux-dev",
+        tokenCost: 40,
+    },
+    "flux-dev": {
+        endpoint: "https://api.us1.bfl.ai/v1/flux-dev",
+        tokenCost: 80,
+    },
+    "flux-pro-1.1": {
+        endpoint: "https://api.us1.bfl.ai/v1/flux-pro-1.1",
+        tokenCost: 120,
+    },
+    "flux-ultra": {
+        endpoint: "https://api.us1.bfl.ai/v1/flux-pro-1.1-ultra",
+        tokenCost: 200,
+    },
+    "flux-raw": {
+        endpoint: "https://api.us1.bfl.ai/v1/flux-pro-1.1-ultra",
+        tokenCost: 180,
+    },
+    "flux-pro-lite": {
+        endpoint: "https://api.us1.bfl.ai/v1/flux-pro-1.1",
+        tokenCost: 60,
+    }
+};
+
 const OPENAI_API_ENDPOINT = 'https://api.openai.com/v1/chat/completions';
-const OPENAI_MODEL = 'gpt-4o-mini-2024-07-18'; // Vous pouvez adapter si besoin
-const DEFAULT_IMAGE_SIZE = { width: 640, height: 480 }; // Taille par défaut
+const OPENAI_MODEL = 'gpt-3.5-turbo';
+const DEFAULT_IMAGE_SIZE = { width: 640, height: 480 };
 
 /******************************************************************/
-/*        SECTION : FONCTION D'OPTIMISATION DU PROMPT                */
+/*          SECTION : OPTIMISATION DU PROMPT POUR FLUX              */
 /******************************************************************/
-/**
- * Optimise le prompt pour la génération d'image avec Flux.
- * @param {string} inputPrompt - Le prompt original
- * @returns {string} Le prompt optimisé
- */
 const optimizeImagePrompt = async (inputPrompt) => {
     try {
         await logToFirebase(`Optimisation du prompt d'image: ${inputPrompt}`);
@@ -54,21 +71,22 @@ const optimizeImagePrompt = async (inputPrompt) => {
             messages: [
                 {
                     role: 'system',
-                    content: "Tu es un expert en génération d'image par IA. Optimise ce prompt pour obtenir un rendu optimal avec FLUX 1.1 [pro]. Sois synthétique, précis et mentionne le style, la composition, l'éclairage et les détails nécessaires."
+                    content:
+                        "Tu es un expert en génération d'image par IA. Optimise ce prompt pour obtenir un rendu optimal avec FLUX. Sois synthétique, précis et mentionne le style, la composition, l'éclairage et les détails nécessaires.",
                 },
                 {
                     role: 'user',
-                    content: `Optimise ce prompt pour FLUX 1.1 [pro] :\n\n${inputPrompt}`
-                }
+                    content: `Optimise ce prompt pour FLUX :\n\n${inputPrompt}`,
+                },
             ],
             temperature: 0.7,
-            max_tokens: 150
+            max_tokens: 150,
         };
 
         const response = await axios.post(OPENAI_API_ENDPOINT, payload, {
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`
+                'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
             },
             timeout: 10000,
         });
@@ -87,13 +105,8 @@ const optimizeImagePrompt = async (inputPrompt) => {
 };
 
 /******************************************************************/
-/*              SECTION : FONCTION DE POLLING POUR FLUX             */
+/*              SECTION : POLLING POUR RÉCUPÉRATION D'IMAGE         */
 /******************************************************************/
-/**
- * Effectue un polling sur l'URL fournie jusqu'à ce que le résultat soit prêt.
- * @param {string} pollingUrl
- * @returns {Object} Le résultat contenant l'URL de l'image et le seed
- */
 const pollForImage = async (pollingUrl) => {
     while (true) {
         try {
@@ -117,11 +130,6 @@ const pollForImage = async (pollingUrl) => {
 /******************************************************************/
 /*         SECTION : CONVERSION DE L'IMAGE EN BASE64                */
 /******************************************************************/
-/**
- * Télécharge l'image depuis l'URL fournie et la convertit en base64.
- * @param {string} imageUrl
- * @returns {string} L'image encodée en base64
- */
 const fetchImageAsBase64 = async (imageUrl) => {
     try {
         const response = await axios.get(imageUrl, { responseType: 'arraybuffer', timeout: 10000 });
@@ -134,43 +142,41 @@ const fetchImageAsBase64 = async (imageUrl) => {
 };
 
 /******************************************************************/
-/*         SECTION : FONCTION PRINCIPALE imageGeneratorController   */
+/*           SECTION : CONTROLEUR PRINCIPAL imageGeneratorController  */
 /******************************************************************/
-/**
- * Contrôleur pour générer une image via Flux après optimisation du prompt.
- * @param {Object} req - La requête HTTP (attend { prompt, imageSize? } dans le body)
- * @param {Object} res - La réponse HTTP
- */
 const imageGeneratorController = async (req, res) => {
-    const { prompt, imageSize } = req.body;
+    const { prompt, imageSize, seed, fluxModel } = req.body;
 
-    // Validation du prompt
     if (!prompt || typeof prompt !== 'string') {
         return res.status(400).json({ error: 'Le champ "prompt" est requis et doit être une chaîne de caractères.' });
     }
-
-    // Définir la taille de l'image (ou utiliser la taille par défaut)
     const size = imageSize || DEFAULT_IMAGE_SIZE;
 
+    // Sélectionne le modèle Flux à utiliser
+    const chosenModelKey = fluxModel && FLUX_MODELS[fluxModel] ? fluxModel : "flux-pro-1.1";
+    const chosenModel = FLUX_MODELS[chosenModelKey];
+
     try {
-        // Optimisation du prompt avant l'envoi à Flux
         const optimizedPrompt = await optimizeImagePrompt(prompt);
 
-        // Préparation du payload pour Flux
+        // Prépare le payload pour Flux
         const payload = {
             prompt: optimizedPrompt,
-            image_size: size, // Exemple : { width: 640, height: 480 }
+            image_size: size,
             sync_mode: true,
             num_images: 1,
             enable_safety_checker: true,
             safety_tolerance: "2",
-            output_format: "jpeg"
+            output_format: "jpeg",
         };
+        if (seed) {
+            payload.seed = seed;
+        }
 
-        await logToFirebase(`Envoi de la requête à Flux avec le prompt optimisé: ${optimizedPrompt}`);
+        await logToFirebase(`Envoi de la requête à Flux (${chosenModelKey}) avec le prompt optimisé: ${optimizedPrompt}`);
 
-        // Envoi de la requête à l'API Flux
-        const fluxResponse = await axios.post(FLUX_API_ENDPOINT, payload, {
+        // Envoie la requête à l'API Flux via l'endpoint du modèle choisi
+        const fluxResponse = await axios.post(chosenModel.endpoint, payload, {
             headers: {
                 'Content-Type': 'application/json',
                 'accept': 'application/json',
@@ -183,20 +189,14 @@ const imageGeneratorController = async (req, res) => {
             throw new Error("URL de polling introuvable dans la réponse de Flux.");
         }
 
-        // Polling pour récupérer le résultat
         const result = await pollForImage(fluxResponse.data.polling_url);
-
         if (!result.sample) {
             throw new Error("Aucune image générée par Flux.");
         }
 
-        // Conversion de l'image en base64
         const base64Image = await fetchImageAsBase64(result.sample);
-
-        await logToFirebase("Image générée avec succès par Flux.");
-
-        // Réponse finale au client
-        return res.status(200).json({ image: base64Image, seed: result.seed || null });
+        await logToFirebase(`Image générée avec succès par Flux (${chosenModelKey}). Coût estimé: ${chosenModel.tokenCost} tokens.`);
+        return res.status(200).json({ image: base64Image, seed: result.seed || null, fluxModel: chosenModelKey, tokenCost: chosenModel.tokenCost });
     } catch (error) {
         await logToFirebase(`Erreur lors de la génération d'image: ${error.message}`);
         if (error.response) {

@@ -33,6 +33,7 @@ const allowedOrigins = [
     'https://api.promete-it.fr',
     'https://testnull-edcb5.web.app',
     'https://www.testnull-edcb5.web.app',
+    'https://cinoji.web.app',
 ];
 
 // Configurer CORS
