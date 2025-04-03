@@ -16,7 +16,9 @@ import signupController from './controllers/signupController.js';
 
 // Nouveau contrôleur pour la génération d'images
 import imageGeneratorController from './controllers/imageGeneratorController.js';
+import { enableFirebaseTelemetry } from '@genkit-ai/firebase';
 
+enableFirebaseTelemetry();
 dotenv.config();
 
 const app = express();

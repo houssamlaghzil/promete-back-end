@@ -4,6 +4,7 @@
   "main": "index.js",
   "type": "module",
   "dependencies": {
+    "@genkit-ai/firebase": "^1.4.0",
     "axios": "1.6.0",
     "body-parser": "^1.20.2",
     "cors": "^2.8.5",
