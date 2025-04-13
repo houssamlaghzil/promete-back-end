@@ -80,7 +80,7 @@ const estimateTokensHeuristically = (message) => {
     const keywordBonus = 15;
     const strongKeywordBonus = 20;
     const consecutiveQuestionBonus = 10;
-    const keywords = ["comment", "pourquoi", "explique", "détaille","détails","détail", "qu'est-ce", "quelle"];
+    const keywords = ["comment", "pourquoi", "explique", "détaille", "détails", "détail", "qu'est-ce", "quelle"];
 
     const messageLength = message.length;
     let interrogations = 0, exclamations = 0, keywordCount = 0, strongKeywordCount = 0;
@@ -231,7 +231,7 @@ const checkConnection = async () => {
         }
     } catch (err) {
         console.error('Erreur lors de la vérification de connexion:', err.message);
-        throw new Error('Connexion impossible à OpenAI.');
+        throw new Error('Connexion impossible à OpenRouter.');
     }
 };
 
@@ -366,9 +366,9 @@ const handleChatbotMessage = async (req, res) => {
         if (res.flushHeaders) res.flushHeaders();
 
         const response = await persistentAxios.post(
-            OPENAI_API_ENDPOINT,
+            LLAMA_API_ENDPOINT,
             {
-                model: OPENAI_MODEL,
+                model: LLAMA_MODEL,
                 messages: messagesToSend,
                 max_tokens: estimatedTokens,
                 temperature: 0.7,
@@ -377,7 +377,7 @@ const handleChatbotMessage = async (req, res) => {
             },
             {
                 headers: {
-                    'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+                    'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
                     'Content-Type': 'application/json',
                     'Accept': 'application/json',
                     'X-Requested-With': 'XMLHttpRequest',
