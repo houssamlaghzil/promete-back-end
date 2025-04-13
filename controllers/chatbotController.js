@@ -16,7 +16,7 @@ dotenv.config(); // Initialisation de dotenv pour accéder aux variables d'envir
 
 // Endpoint chat d'OpenRouter pour Llama 4 Scout (free)
 const LLAMA_API_ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions';
-const LLAMA_MODEL = 'meta-llama/llama-4-scout:free';
+const LLAMA_MODEL = 'meta-llama/llama-4-scout';
 
 const MIN_TOKENS = 30;
 const MAX_TOKENS = 300;
