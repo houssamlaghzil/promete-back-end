@@ -7,8 +7,8 @@ import http from 'http';
 import https from 'https';
 import admin from '../config/firebase.js';
 import dotenv from 'dotenv';
-import Together from "together-ai"; // Bibliothèque pour Together
-dotenv.config(); // Initialisation de dotenv pour accéder aux variables d'environnement
+import Together from "together-ai"; // Pour la génération d'images via Together
+dotenv.config(); // Chargement des variables d'environnement
 
 /******************************************************************/
 /*                        SECTION CONFIGURATION                   */
@@ -26,7 +26,7 @@ const SYSTEM_ROLE_ESTIMATE = process.env.SYSTEM_ROLE_ESTIMATE || 'system';
 const SYSTEM_CONTENT_ESTIMATE = process.env.SYSTEM_CONTENT_ESTIMATE || 'Please estimate the number of tokens.';
 
 /******************************************************************/
-/*           FONCTION POUR ÉCHAPPER LES CARACTÈRES SPÉCIAUX         */
+/*      FONCTION POUR ÉCHAPPER LES CARACTÈRES SPÉCIAUX             */
 /******************************************************************/
 
 const escapeRegex = (str) => {
@@ -34,7 +34,7 @@ const escapeRegex = (str) => {
 };
 
 /******************************************************************/
-/*             LISTE DES MOTS-CLÉS POUR RÉPONSE LONGUE            */
+/*           LISTE DES MOTS-CLÉS POUR RÉPONSE LONGUE              */
 /******************************************************************/
 
 const strongResponseKeywords = [
@@ -64,7 +64,7 @@ const logToFirebase = async (message) => {
 };
 
 /******************************************************************/
-/*                 SECTION : CACHE MÉMOIRE SIMPLE                 */
+/*                SECTION : CACHE MÉMOIRE SIMPLE                  */
 /******************************************************************/
 
 const estimationCache = new Map();
@@ -147,6 +147,19 @@ const estimateTokens = async (message) => {
 };
 
 /******************************************************************/
+/*  SECTION : FILTRAGE DES PREVIOUS MESSAGES (pour alléger le payload)  */
+/******************************************************************/
+
+const filterPreviousMessages = (messages) => {
+    return messages.map(msg => {
+        if (msg.content && (msg.content.startsWith("/9j/") || msg.content.startsWith("iVBOR"))) {
+            return { role: msg.role, content: "[Image générée]" };
+        }
+        return msg;
+    });
+};
+
+/******************************************************************/
 /*        SECTION : CONFIGURATION DE LA CONNEXION PERSISTANTE       */
 /******************************************************************/
 
@@ -158,7 +171,7 @@ const persistentAxios = axios.create({
 });
 
 /******************************************************************/
-/*    SECTION : FONCTION DE CLASSIFICATION DU PROMPT (IA)           */
+/*   SECTION : FONCTION DE CLASSIFICATION DU PROMPT (IA)           */
 /******************************************************************/
 
 const classifyPrompt = async (prompt) => {
@@ -190,12 +203,70 @@ const classifyPrompt = async (prompt) => {
             }
         );
 
-        const result = resClassif.data.choices[0].message?.content.trim().toLowerCase();
+        const choices = resClassif?.data?.choices;
+        if (!choices || !Array.isArray(choices) || choices.length === 0) {
+            console.error("Réponse de classification invalide.");
+            return "texte";
+        }
+        const rawClassification = choices[0].message?.content || "";
+        const result = rawClassification.trim().toLowerCase();
         console.log("Classification du prompt :", result);
-        return result; // doit être "image" ou "texte"
+        return result === "image" ? "image" : "texte";
     } catch (err) {
         console.error("Erreur lors de la classification du prompt:", err.message);
-        return "texte"; // Par défaut, on considère la demande comme textuelle
+        return "texte";
+    }
+};
+
+/******************************************************************/
+/*  SECTION : AMÉLIORATION DU PROMPT POUR LA GÉNÉRATION D'IMAGES     */
+/******************************************************************/
+
+const improveImagePrompt = async (originalPrompt, previousMessages) => {
+    try {
+        const context = previousMessages.map(m => m.content).join(" ");
+        const improvementPayload = {
+            model: LLAMA_MODEL,
+            messages: [
+                {
+                    role: "system",
+                    content: "Améliore le prompt suivant pour maximiser le potentiel de génération d'image. Prends en compte le contexte fourni et reformule le prompt de manière plus descriptive, détaillée et optimisée. Répond uniquement par le nouveau prompt, sans explication."
+                },
+                { role: "assistant", content: context },
+                { role: "user", content: `Prompt original : ${originalPrompt}` }
+            ],
+            max_tokens: 100,
+            temperature: 0.7,
+            stream: false,
+        };
+
+        const resImproved = await persistentAxios.post(
+            LLAMA_API_ENDPOINT,
+            improvementPayload,
+            {
+                headers: {
+                    'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'User-Agent': 'Bubble/1.0'
+                }
+            }
+        );
+        const improvedChoices = resImproved.data?.choices;
+        if (!improvedChoices || !Array.isArray(improvedChoices) || improvedChoices.length === 0) {
+            console.error("Réponse d'amélioration du prompt invalide.");
+            return originalPrompt;
+        }
+        const refinedPrompt = improvedChoices[0].message?.content?.trim();
+        if (!refinedPrompt) {
+            console.error("Prompt amélioré vide ou non trouvé, on utilise le prompt original.");
+            return originalPrompt;
+        }
+        console.log("Prompt amélioré :", refinedPrompt);
+        return refinedPrompt;
+    } catch (error) {
+        console.error("Erreur lors de l'amélioration du prompt:", error.message);
+        return originalPrompt;
     }
 };
 
@@ -282,7 +353,7 @@ Communique uniquement une fourchette de prix finale, cohérente et compétitive.
 };
 
 /******************************************************************/
-/*        SECTION : FONCTION PRINCIPALE handleChatbotMessage      */
+/*    SECTION : FONCTION PRINCIPALE handleChatbotMessage            */
 /******************************************************************/
 
 const handleChatbotMessage = async (req, res) => {
@@ -308,10 +379,17 @@ const handleChatbotMessage = async (req, res) => {
         return;
     }
 
-    // Classification du prompt via IA pour déterminer s'il s'agit d'une demande de génération d'image
+    // Étape 1 : Classification du prompt pour déterminer s'il s'agit d'une demande d'image ou de texte
     const promptType = await classifyPrompt(message);
     console.log("Type de prompt détecté:", promptType);
+
     if (promptType === "image") {
+        // Pour les demandes d'image, on améliore d'abord le prompt en utilisant le contexte.
+        const filteredMessages = filterPreviousMessages(previousMessages);
+        const improvedPrompt = await improveImagePrompt(message, filteredMessages);
+        console.log("Prompt utilisé pour la génération d'image :", improvedPrompt);
+
+        // Vérifier la clé Together
         const togetherApiKey = process.env.TOGETHER_API_KEY;
         if (!togetherApiKey) {
             console.error("La variable TOGETHER_API_KEY est absente ou vide.");
@@ -319,17 +397,16 @@ const handleChatbotMessage = async (req, res) => {
             return;
         }
         const together = new Together({ apiKey: togetherApiKey });
-        // Paramètres par défaut pour la génération d'image (on force 'steps' à être entre 1 et 4)
-        const width = 1024;
-        const height = 768;
-        const steps = 4;
-        const n =  1;
-        const response_format = "b64_json";
-        const stop =  [];
+        const width = req.body.imageParams?.width || 1024;
+        const height = req.body.imageParams?.height || 768;
+        const steps = req.body.imageParams?.steps ? Math.min(req.body.imageParams.steps, 4) : 4;
+        const n = req.body.imageParams?.n || 1;
+        const response_format = req.body.imageParams?.response_format || "b64_json";
+        const stop = req.body.imageParams?.stop || [];
         try {
             const imageResponse = await together.images.create({
-                model: "black-forest-labs/FLUX.1-schnell-Free",
-                prompt: message,
+                model: req.body.imageParams?.model || "black-forest-labs/FLUX.1-schnell-Free",
+                prompt: improvedPrompt,
                 width,
                 height,
                 steps,
@@ -349,16 +426,15 @@ const handleChatbotMessage = async (req, res) => {
         }
     }
 
-
-    // Si la classification est "texte", continuer avec la génération de texte via OpenRouter
+    // Pour les demandes textuelles (ou autres)
+    const filteredPreviousMessages = filterPreviousMessages(previousMessages);
     try {
         await checkConnection();
 
         const estimatedTokens = await estimateTokens(message);
         await logToFirebase(`Nombre de tokens estimé à utiliser: ${estimatedTokens}`);
-        const messagesToSend = buildSystemMessages(estimatedTokens, previousMessages, message);
-
-        console.log('Envoi de la requête à OpenRouter (Llama 4 Scout) :', estimatedTokens, "previousMessages :", previousMessages, "message :", message);
+        const messagesToSend = buildSystemMessages(estimatedTokens, filteredPreviousMessages, message);
+        console.log('Envoi de la requête à OpenRouter (Llama 4 Scout) :', estimatedTokens, "previousMessages :", filteredPreviousMessages, "message :", message);
 
         res.setHeader('Content-Type', 'text/plain; charset=utf-8');
         res.setHeader('Transfer-Encoding', 'chunked');
@@ -399,6 +475,9 @@ const handleChatbotMessage = async (req, res) => {
         let content = "";
         if (jsonResponse && jsonResponse.choices && jsonResponse.choices.length > 0) {
             content = jsonResponse.choices[0].message?.content || jsonResponse.choices[0].delta?.content || "";
+        }
+        if (!content) {
+            content = "Désolé, je n'ai pas de réponse à t'apporter pour le moment. 🤔";
         }
         res.write(content);
         res.end();
