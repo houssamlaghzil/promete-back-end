@@ -2,7 +2,6 @@
 /*                        FICHIER handleChatbotMessage.js         */
 /******************************************************************/
 
-// Import des dépendances nécessaires pour le fonctionnement du fichier
 import axios from 'axios';
 import http from 'http';
 import https from 'https';
@@ -14,8 +13,9 @@ dotenv.config(); // Initialisation de dotenv pour accéder aux variables d'envir
 /*                        SECTION CONFIGURATION                   */
 /******************************************************************/
 
-const OPENAI_API_ENDPOINT = 'https://api.openai.com/v1/chat/completions';
-const OPENAI_MODEL = 'gpt-4o-mini-2024-07-18';
+// Utilisation de l'endpoint API documenté pour le modèle Llama 4 Scout (free)
+const LLAMA_API_ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions';
+const LLAMA_MODEL = 'meta-llama/llama-4-scout:free';
 
 const MIN_TOKENS = 30;
 const MAX_TOKENS = 300;
@@ -146,7 +146,7 @@ const estimateTokens = async (message) => {
 };
 
 /******************************************************************/
-/*           SECTION : PERSISTANCE DE LA CONNEXION                 */
+/*        SECTION : CONFIGURATION DE LA CONNEXION PERSISTANTE       */
 /******************************************************************/
 
 const httpsAgent = new https.Agent({ keepAlive: true });
@@ -156,13 +156,33 @@ const persistentAxios = axios.create({
     timeout: 10000
 });
 
+/******************************************************************/
+/*    SECTION : VÉRIFICATION DE LA CONNEXION AVEC OPENROUTER         */
+/******************************************************************/
+
 const checkConnection = async () => {
     try {
-        const response = await persistentAxios.get('https://api.openai.com/v1/models', {
-            headers: { 'Authorization': `Bearer ${process.env.OPENAI_API_KEY}` }
-        });
+        // Requête test en mode non-streaming
+        const testPayload = {
+            model: LLAMA_MODEL,
+            messages: [{ role: 'system', content: 'ping' }],
+            max_tokens: 1,
+            stream: false,
+        };
+        const response = await persistentAxios.post(
+            LLAMA_API_ENDPOINT,
+            testPayload,
+            {
+                headers: {
+                    'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'User-Agent': 'Bubble/1.0'
+                }
+            }
+        );
         if (response.status === 200) {
-            console.log("Connexion vérifiée avec OpenAI.");
+            console.log("Connexion vérifiée avec OpenRouter.");
             return true;
         } else {
             throw new Error(`Statut inattendu: ${response.status}`);
@@ -223,19 +243,11 @@ Communique uniquement une fourchette de prix finale, cohérente et compétitive.
 /*        SECTION : FONCTION PRINCIPALE handleChatbotMessage      */
 /******************************************************************/
 
-/**
- * Gère la requête du chatbot en vérifiant la connexion, en établissant une connexion persistante,
- * en estimant le nombre de tokens et en gérant le streaming de la réponse.
- *
- * @param {object} req - Requête HTTP.
- * @param {object} res - Réponse HTTP.
- */
 const handleChatbotMessage = async (req, res) => {
     const startTime = Date.now();
-    let responseSent = false; // Flag pour éviter l'envoi multiple de la réponse
-
+    let responseSent = false;
     const originalEnd = res.end;
-    res.end = function(...args) {
+    res.end = function (...args) {
         if (!responseSent) {
             responseSent = true;
             const processingTime = Date.now() - startTime;
@@ -246,29 +258,30 @@ const handleChatbotMessage = async (req, res) => {
 
     const { message, previousMessages } = req.body;
     if (!message || typeof message !== 'string') {
-        if (!responseSent) res.status(400).json({ error: 'Le champ "message" est requis et doit être une chaîne de caractères.' });
+        res.status(400).json({ error: 'Le champ "message" est requis et doit être une chaîne de caractères.' });
         return;
     }
     if (!Array.isArray(previousMessages)) {
-        if (!responseSent) res.status(400).json({ error: 'Le champ "previousMessages" est requis et doit être un tableau.' });
+        res.status(400).json({ error: 'Le champ "previousMessages" est requis et doit être un tableau.' });
         return;
     }
 
     try {
+        // Vérifier la connexion via une requête test
         await checkConnection();
 
         const estimatedTokens = await estimateTokens(message);
         await logToFirebase(`Nombre de tokens estimé à utiliser: ${estimatedTokens}`);
         const messagesToSend = buildSystemMessages(estimatedTokens, previousMessages, message);
 
-        console.log('Envoi de la requête à OpenAI :' ,estimatedTokens, "previousMessages : ", previousMessages, "message : ", message);
+        console.log('Envoi de la requête à OpenRouter (Llama 4 Scout) :', estimatedTokens, "previousMessages :", previousMessages, "message :", message);
 
         res.setHeader('Content-Type', 'text/plain; charset=utf-8');
         res.setHeader('Transfer-Encoding', 'chunked');
         res.setHeader('Cache-Control', 'no-cache');
         if (res.flushHeaders) res.flushHeaders();
 
-        let buffer = "";
+        // Appel à l'API sans streaming pour obtenir une réponse JSON complète
         const response = await persistentAxios.post(
             OPENAI_API_ENDPOINT,
             {
@@ -277,76 +290,48 @@ const handleChatbotMessage = async (req, res) => {
                 max_tokens: estimatedTokens,
                 temperature: 0.7,
                 top_p: 0.9,
-                stream: true,
+                stream: false,
             },
             {
                 headers: {
                     'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
                     'Content-Type': 'application/json',
-                },
-                responseType: 'stream'
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'User-Agent': 'Bubble/1.0'
+                }
             }
         );
 
-        response.data.on('data', (chunk) => {
-            buffer += chunk.toString();
-            let lines = buffer.split('\n');
-            buffer = lines.pop(); // Conserve la dernière ligne incomplète
-            for (const line of lines) {
-                if (line.trim() === "") continue;
-                if (line.startsWith('data:')) {
-                    const dataStr = line.replace(/^data:\s*/, '').trim();
-                    if (dataStr === '[DONE]') {
-                        res.end();
-                        return;
-                    }
-                    try {
-                        const parsed = JSON.parse(dataStr);
-                        const content = parsed.choices[0].delta?.content || '';
-                        if (content && !responseSent) {
-                            res.write(content);
-                            if (res.flush) res.flush();
-                        }
-                    } catch (e) {
-                        console.error('Erreur lors de l\'analyse du chunk:', e);
-                    }
-                }
-            }
-        });
-
-        response.data.on('end', () => {
-            if (buffer.trim()) {
-                try {
-                    const parsed = JSON.parse(buffer);
-                    const content = parsed.choices[0].delta?.content || '';
-                    if (content && !responseSent) {
-                        res.write(content);
-                        if (res.flush) res.flush();
-                    }
-                } catch (e) {
-                    console.error('Erreur lors de l\'analyse du buffer final:', e);
-                }
-            }
+        // Vérifier le type de contenu renvoyé
+        const contentType = response.headers['content-type'];
+        if (contentType && contentType.includes('text/html')) {
+            console.error("Réponse HTML inattendue :", contentType);
+            console.error("Extrait de la réponse :", response.data.substring(0, 200));
+            res.write("Désolé, une erreur est survenue lors de la communication avec OpenRouter.");
             res.end();
-        });
+            return;
+        }
 
-        response.data.on('error', (err) => {
-            logToFirebase(`Erreur lors du streaming OpenAI: ${err.message}`);
-            res.end();
-        });
+        // Traiter la réponse JSON
+        const jsonResponse = response.data;
+        let content = "";
+        if (jsonResponse && jsonResponse.choices && jsonResponse.choices.length > 0) {
+            content = jsonResponse.choices[0].message?.content || jsonResponse.choices[0].delta?.content || "";
+        }
+        res.write(content);
+        res.end();
 
     } catch (error) {
-        if (!responseSent) {
-            if (error.response) {
-                await logToFirebase(`Erreur API OpenAI (status: ${error.response.status}): ${error.response.data?.error?.message || error.response.statusText}`);
-                res.status(500).json({ error: 'Erreur lors de la communication avec OpenAI (API error).' });
-            } else if (error.request) {
-                await logToFirebase(`Erreur réseau lors de l'appel à OpenAI: ${error.message}`);
-                res.status(502).json({ error: 'Erreur réseau lors de la communication avec OpenAI.' });
-            } else {
-                await logToFirebase(`Erreur inattendue: ${error.message}`);
-                res.status(500).json({ error: 'Erreur inattendue lors du traitement.' });
-            }
+        if (error.response) {
+            await logToFirebase(`Erreur API OpenRouter (status: ${error.response.status}): ${error.response.data?.error?.message || error.response.statusText}`);
+            res.status(500).json({ error: 'Erreur lors de la communication avec OpenRouter (API error).' });
+        } else if (error.request) {
+            await logToFirebase(`Erreur réseau lors de l'appel à OpenRouter: ${error.message}`);
+            res.status(502).json({ error: 'Erreur réseau lors de la communication avec OpenRouter.' });
+        } else {
+            await logToFirebase(`Erreur inattendue: ${error.message}`);
+            res.status(500).json({ error: 'Erreur inattendue lors du traitement.' });
         }
     }
 };
