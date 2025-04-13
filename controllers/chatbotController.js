@@ -2,6 +2,10 @@
 /*                        FICHIER handleChatbotMessage.js         */
 /******************************************************************/
 
+/******************************************************************/
+/*                        FICHIER handleChatbotMessage.js         */
+/******************************************************************/
+
 // Import des dépendances nécessaires pour le fonctionnement du fichier
 import axios from 'axios';
 import http from 'http';
@@ -14,8 +18,10 @@ dotenv.config(); // Initialisation de dotenv pour accéder aux variables d'envir
 /*                        SECTION CONFIGURATION                   */
 /******************************************************************/
 
-const OPENAI_API_ENDPOINT = 'https://api.openai.com/v1/chat/completions';
-const OPENAI_MODEL = 'gpt-4o-mini-2024-07-18';
+// Point d'accès pour Llama 4 via OpenRouter
+const LLAMA_API_ENDPOINT = 'https://openrouter.ai/meta-llama/llama-4-scout:free';
+// Modèle à utiliser, ici par exemple "llama-4-scout"
+const LLAMA_MODEL = 'llama-4-scout';
 
 const MIN_TOKENS = 30;
 const MAX_TOKENS = 300;
@@ -79,7 +85,7 @@ const estimateTokensHeuristically = (message) => {
     const keywordBonus = 15;
     const strongKeywordBonus = 20;
     const consecutiveQuestionBonus = 10;
-    const keywords = ["comment", "pourquoi", "explique", "détaille","détails","détail", "qu'est-ce", "quelle"];
+    const keywords = ["comment", "pourquoi", "explique", "détaille", "détails", "détail", "qu'est-ce", "quelle"];
 
     const messageLength = message.length;
     let interrogations = 0, exclamations = 0, keywordCount = 0, strongKeywordCount = 0;
@@ -156,20 +162,21 @@ const persistentAxios = axios.create({
     timeout: 10000
 });
 
+// Vérification de la connexion à OpenRouter en effectuant une requête GET sur l'endpoint
 const checkConnection = async () => {
     try {
-        const response = await persistentAxios.get('https://api.openai.com/v1/models', {
-            headers: { 'Authorization': `Bearer ${process.env.OPENAI_API_KEY}` }
+        const response = await persistentAxios.get(LLAMA_API_ENDPOINT, {
+            headers: { 'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}` }
         });
         if (response.status === 200) {
-            console.log("Connexion vérifiée avec OpenAI.");
+            console.log("Connexion vérifiée avec OpenRouter pour Llama 4.");
             return true;
         } else {
             throw new Error(`Statut inattendu: ${response.status}`);
         }
     } catch (err) {
         console.error('Erreur lors de la vérification de connexion:', err.message);
-        throw new Error('Connexion impossible à OpenAI.');
+        throw new Error('Connexion impossible à OpenRouter.');
     }
 };
 
@@ -261,7 +268,7 @@ const handleChatbotMessage = async (req, res) => {
         await logToFirebase(`Nombre de tokens estimé à utiliser: ${estimatedTokens}`);
         const messagesToSend = buildSystemMessages(estimatedTokens, previousMessages, message);
 
-        console.log('Envoi de la requête à OpenAI :' ,estimatedTokens, "previousMessages : ", previousMessages, "message : ", message);
+        console.log('Envoi de la requête à OpenRouter (Llama 4) :', estimatedTokens, "previousMessages :", previousMessages, "message :", message);
 
         res.setHeader('Content-Type', 'text/plain; charset=utf-8');
         res.setHeader('Transfer-Encoding', 'chunked');
@@ -270,9 +277,9 @@ const handleChatbotMessage = async (req, res) => {
 
         let buffer = "";
         const response = await persistentAxios.post(
-            OPENAI_API_ENDPOINT,
+            LLAMA_API_ENDPOINT,
             {
-                model: OPENAI_MODEL,
+                model: LLAMA_MODEL,
                 messages: messagesToSend,
                 max_tokens: estimatedTokens,
                 temperature: 0.7,
@@ -281,8 +288,10 @@ const handleChatbotMessage = async (req, res) => {
             },
             {
                 headers: {
-                    'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+                    'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
                     'Content-Type': 'application/json',
+                    // Les headers OpenRouter spécifiques sont optionnels et peuvent être ajoutés ici
+                    // 'OpenRouter-Specific-Header': 'value',
                 },
                 responseType: 'stream'
             }
@@ -331,18 +340,18 @@ const handleChatbotMessage = async (req, res) => {
         });
 
         response.data.on('error', (err) => {
-            logToFirebase(`Erreur lors du streaming OpenAI: ${err.message}`);
+            logToFirebase(`Erreur lors du streaming OpenRouter (Llama 4): ${err.message}`);
             res.end();
         });
 
     } catch (error) {
         if (!responseSent) {
             if (error.response) {
-                await logToFirebase(`Erreur API OpenAI (status: ${error.response.status}): ${error.response.data?.error?.message || error.response.statusText}`);
-                res.status(500).json({ error: 'Erreur lors de la communication avec OpenAI (API error).' });
+                await logToFirebase(`Erreur API OpenRouter (status: ${error.response.status}): ${error.response.data?.error?.message || error.response.statusText}`);
+                res.status(500).json({ error: 'Erreur lors de la communication avec OpenRouter (API error).' });
             } else if (error.request) {
-                await logToFirebase(`Erreur réseau lors de l'appel à OpenAI: ${error.message}`);
-                res.status(502).json({ error: 'Erreur réseau lors de la communication avec OpenAI.' });
+                await logToFirebase(`Erreur réseau lors de l'appel à OpenRouter: ${error.message}`);
+                res.status(502).json({ error: 'Erreur réseau lors de la communication avec OpenRouter.' });
             } else {
                 await logToFirebase(`Erreur inattendue: ${error.message}`);
                 res.status(500).json({ error: 'Erreur inattendue lors du traitement.' });
