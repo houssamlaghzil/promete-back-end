@@ -16,7 +16,6 @@ import signupController from './controllers/signupController.js';
 
 // Nouveau contrôleur pour la génération d'images
 import imageGeneratorController from './controllers/imageGeneratorController.js';
-
 dotenv.config();
 
 const app = express();
