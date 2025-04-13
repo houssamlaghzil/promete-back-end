@@ -7,13 +7,14 @@ import http from 'http';
 import https from 'https';
 import admin from '../config/firebase.js';
 import dotenv from 'dotenv';
+import Together from "together-ai"; // Bibliothèque pour Together
 dotenv.config(); // Initialisation de dotenv pour accéder aux variables d'environnement
 
 /******************************************************************/
 /*                        SECTION CONFIGURATION                   */
 /******************************************************************/
 
-// Utilisation de l'endpoint API documenté pour le modèle Llama 4 Scout (free)
+// Endpoint chat d'OpenRouter pour Llama 4 Scout (free)
 const LLAMA_API_ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions';
 const LLAMA_MODEL = 'meta-llama/llama-4-scout:free';
 
@@ -157,12 +158,53 @@ const persistentAxios = axios.create({
 });
 
 /******************************************************************/
+/*    SECTION : FONCTION DE CLASSIFICATION DU PROMPT (IA)           */
+/******************************************************************/
+
+const classifyPrompt = async (prompt) => {
+    try {
+        const classificationPayload = {
+            model: LLAMA_MODEL,
+            messages: [
+                {
+                    role: "system",
+                    content: "Classifie le prompt suivant par 'image' si la demande concerne la génération d'une image à partir du texte, sinon par 'texte'. Répond uniquement par 'image' ou 'texte'."
+                },
+                { role: "user", content: prompt }
+            ],
+            max_tokens: 5,
+            temperature: 0,
+            stream: false,
+        };
+
+        const resClassif = await persistentAxios.post(
+            LLAMA_API_ENDPOINT,
+            classificationPayload,
+            {
+                headers: {
+                    'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'User-Agent': 'Bubble/1.0'
+                }
+            }
+        );
+
+        const result = resClassif.data.choices[0].message?.content.trim().toLowerCase();
+        console.log("Classification du prompt :", result);
+        return result; // doit être "image" ou "texte"
+    } catch (err) {
+        console.error("Erreur lors de la classification du prompt:", err.message);
+        return "texte"; // Par défaut, on considère la demande comme textuelle
+    }
+};
+
+/******************************************************************/
 /*    SECTION : VÉRIFICATION DE LA CONNEXION AVEC OPENROUTER         */
 /******************************************************************/
 
 const checkConnection = async () => {
     try {
-        // Requête test en mode non-streaming
         const testPayload = {
             model: LLAMA_MODEL,
             messages: [{ role: 'system', content: 'ping' }],
@@ -266,8 +308,50 @@ const handleChatbotMessage = async (req, res) => {
         return;
     }
 
+    // Classification du prompt via IA pour déterminer s'il s'agit d'une demande de génération d'image
+    const promptType = await classifyPrompt(message);
+    console.log("Type de prompt détecté:", promptType);
+    if (promptType === "image") {
+        const togetherApiKey = process.env.TOGETHER_API_KEY;
+        if (!togetherApiKey) {
+            console.error("La variable TOGETHER_API_KEY est absente ou vide.");
+            res.status(500).json({ error: "Configuration error: missing Together API key" });
+            return;
+        }
+        const together = new Together({ apiKey: togetherApiKey });
+        // Paramètres par défaut pour la génération d'image (on force 'steps' à être entre 1 et 4)
+        const width = 1024;
+        const height = 768;
+        const steps = 4;
+        const n =  1;
+        const response_format = "b64_json";
+        const stop =  [];
+        try {
+            const imageResponse = await together.images.create({
+                model: "black-forest-labs/FLUX.1-schnell-Free",
+                prompt: message,
+                width,
+                height,
+                steps,
+                n,
+                response_format,
+                stop,
+            });
+            const imageData = imageResponse.data[0].b64_json;
+            res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+            res.write(imageData);
+            res.end();
+            return;
+        } catch (error) {
+            console.error("Erreur lors de la génération d'image via Together:", error);
+            res.status(500).json({ error: "Erreur lors de la génération de l'image via Together." });
+            return;
+        }
+    }
+
+
+    // Si la classification est "texte", continuer avec la génération de texte via OpenRouter
     try {
-        // Vérifier la connexion via une requête test
         await checkConnection();
 
         const estimatedTokens = await estimateTokens(message);
@@ -281,7 +365,6 @@ const handleChatbotMessage = async (req, res) => {
         res.setHeader('Cache-Control', 'no-cache');
         if (res.flushHeaders) res.flushHeaders();
 
-        // Appel à l'API sans streaming pour obtenir une réponse JSON complète
         const response = await persistentAxios.post(
             OPENAI_API_ENDPOINT,
             {
@@ -303,7 +386,6 @@ const handleChatbotMessage = async (req, res) => {
             }
         );
 
-        // Vérifier le type de contenu renvoyé
         const contentType = response.headers['content-type'];
         if (contentType && contentType.includes('text/html')) {
             console.error("Réponse HTML inattendue :", contentType);
@@ -313,7 +395,6 @@ const handleChatbotMessage = async (req, res) => {
             return;
         }
 
-        // Traiter la réponse JSON
         const jsonResponse = response.data;
         let content = "";
         if (jsonResponse && jsonResponse.choices && jsonResponse.choices.length > 0) {
