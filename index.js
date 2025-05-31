@@ -1,10 +1,11 @@
-/******************************************************************
- *                     backend / index.js                         *
- ******************************************************************/
+/******************************************************************/
+/*                       backend / index.js                       */
+/******************************************************************/
 
-import express       from 'express';
-import bodyParser    from 'body-parser';
-import dotenv        from 'dotenv';
+import express      from 'express';
+import cors         from 'cors';
+import bodyParser   from 'body-parser';
+import dotenv       from 'dotenv';
 
 // Contrôleurs existants
 import chatbotController            from './controllers/chatbotController.js';
@@ -25,31 +26,49 @@ const PORT = process.env.PORT || 3000;
 /* -------------------------------------------------------------------------- */
 /*                               MIDDLEWARES                                  */
 /* -------------------------------------------------------------------------- */
-/**
- *  On augmente la taille maximale à 50 Mo pour accepter
- *  les images/masques encodés en Base64.
- */
+/* ↑↑↑ Seule modification : on monte la limite à 50 Mo */
 app.use(bodyParser.json({ limit: '50mb' }));
 app.use(bodyParser.urlencoded({ extended: true, limit: '50mb' }));
 
-// NB : Les en-têtes CORS sont désormais injectés par NGINX.
-//       Aucune configuration cors() n’est nécessaire ici.
+/* Configuration CORS (inchangée) */
+const allowedOrigins = [
+    'http://localhost:3000',
+    'https://www.xn--mon-projet-numrique-ozb.fr',
+    'https://toulouse-adventure.promete-it.fr',
+    'https://api.promete-it.fr',
+    'https://testnull-edcb5.web.app',
+    'https://www.testnull-edcb5.web.app',
+    'https://cinoji.web.app',
+];
+
+app.use(cors({
+    origin: (origin, cb) => {
+        if (!origin) return cb(null, true);               // Postman & co.
+        if (allowedOrigins.indexOf(origin) === -1) {
+            return cb(new Error('CORS policy: Origin not allowed'), false);
+        }
+        return cb(null, true);
+    },
+    methods: ['GET', 'POST', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: true,
+}));
 
 /* -------------------------------------------------------------------------- */
 /*                                   ROUTES                                   */
 /* -------------------------------------------------------------------------- */
-// Routes historiques
-app.post('/chatbot',   chatbotController);
-app.post('/toulouse',  chatbotControllerToulouse);
-app.post('/email',     emailController);
-app.post('/orth',      Orth);
+app.post('/chatbot',               chatbotController);
+app.post('/toulouse',              chatbotControllerToulouse);
+app.post('/email',                 emailController);
+app.post('/orth',                  Orth);
 
-// Nouvelles routes
 app.post('/create-payment-intent', paymentController);
 app.post('/signup',                signupController);
+
+/* Route de génération d’image */
 app.post('/generate-image',        imageGeneratorController);
 
-// Health-check
+/* Health-check */
 app.get('/', (req, res) => {
     res.send('Serveur Express en cours d’exécution.');
 });
@@ -58,5 +77,5 @@ app.get('/', (req, res) => {
 /*                               LANCEMENT                                    */
 /* -------------------------------------------------------------------------- */
 app.listen(PORT, () => {
-    console.log(`✅  Serveur lancé sur le port ${PORT}`);
+    console.log(`Serveur en cours d'exécution sur le port ${PORT}`);
 });
