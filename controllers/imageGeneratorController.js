@@ -53,6 +53,14 @@ const FLUX_MODELS = {
     "flux-pro-lite": {
         endpoint: "https://api.us1.bfl.ai/v1/flux-pro-1.1",
         tokenCost: 60,
+    },
+    "flux-kontext-pro": {
+        endpoint: "https://api.us1.bfl.ai/v1/flux-kontext-pro",
+        tokenCost: 100,
+    },
+    "flux-kontext-max": {
+        endpoint: "https://api.us1.bfl.ai/v1/flux-kontext-max",
+        tokenCost: 200,
     }
 };
 
@@ -61,7 +69,7 @@ const OPENAI_MODEL = 'gpt-3.5-turbo';
 const DEFAULT_IMAGE_SIZE = { width: 640, height: 480 };
 
 /******************************************************************/
-/*          SECTION : OPTIMISATION DU PROMPT POUR FLUX              */
+/*          SECTION : OPTIMISATION DU PROMPT POUR FLUX            */
 /******************************************************************/
 const optimizeImagePrompt = async (inputPrompt) => {
     try {
@@ -105,7 +113,7 @@ const optimizeImagePrompt = async (inputPrompt) => {
 };
 
 /******************************************************************/
-/*              SECTION : POLLING POUR RÉCUPÉRATION D'IMAGE         */
+/*              SECTION : POLLING POUR RÉCUPÉRATION D'IMAGE        */
 /******************************************************************/
 const pollForImage = async (pollingUrl) => {
     while (true) {
@@ -117,7 +125,8 @@ const pollForImage = async (pollingUrl) => {
                 },
                 timeout: 10000,
             });
-            if (response.data.status === 'Ready') {
+            // Supporte à la fois "Ready" et "succeeded"
+            if (response.data.status === 'Ready' || response.data.status === 'succeeded') {
                 return response.data.result;
             }
         } catch (error) {
@@ -128,7 +137,7 @@ const pollForImage = async (pollingUrl) => {
 };
 
 /******************************************************************/
-/*         SECTION : CONVERSION DE L'IMAGE EN BASE64                */
+/*         SECTION : CONVERSION DE L'IMAGE EN BASE64              */
 /******************************************************************/
 const fetchImageAsBase64 = async (imageUrl) => {
     try {
@@ -142,40 +151,70 @@ const fetchImageAsBase64 = async (imageUrl) => {
 };
 
 /******************************************************************/
-/*           SECTION : CONTROLEUR PRINCIPAL imageGeneratorController  */
+/*      SECTION : CONTROLEUR PRINCIPAL imageGeneratorController    */
 /******************************************************************/
 const imageGeneratorController = async (req, res) => {
-    const { prompt, imageSize, seed, fluxModel } = req.body;
+    const {
+        prompt,
+        imageSize,         // width/height pour les anciens modèles
+        aspectRatio,       // "1:1", "3:4", etc.
+        outputFormat,      // "jpeg", "png", "webp"
+        seed,
+        fluxModel,
+        inputImage,        // base64 ou URL → édition globale
+        maskImage,         // base64 ou URL → édition locale
+        negativePrompt,
+        promptUpsampling,  // bool
+        safetyTolerance,   // 0–3
+        guidanceScale,     // float, p.ex. 7.5
+        strength,          // 0–1 (édition)
+        webhookUrl,
+        webhookSecret
+    } = req.body;
 
+    // Validation des champs essentiels
     if (!prompt || typeof prompt !== 'string') {
         return res.status(400).json({ error: 'Le champ "prompt" est requis et doit être une chaîne de caractères.' });
     }
+    if (maskImage && !inputImage) {
+        return res.status(400).json({ error: 'maskImage nécessite aussi inputImage.' });
+    }
     const size = imageSize || DEFAULT_IMAGE_SIZE;
 
-    // Sélectionne le modèle Flux à utiliser
+    // Sélection du modèle
     const chosenModelKey = fluxModel && FLUX_MODELS[fluxModel] ? fluxModel : "flux-pro-1.1";
     const chosenModel = FLUX_MODELS[chosenModelKey];
 
     try {
         const optimizedPrompt = await optimizeImagePrompt(prompt);
 
-        // Prépare le payload pour Flux
+        // Préparation du payload dynamique selon le modèle
         const payload = {
             prompt: optimizedPrompt,
-            image_size: size,
-            sync_mode: true,
-            num_images: 1,
-            enable_safety_checker: true,
-            safety_tolerance: "2",
-            output_format: "jpeg",
+            ...(inputImage        && { input_image: inputImage }),
+            ...(maskImage         && { mask_image: maskImage }),
+            ...(seed              && { seed }),
+            ...(negativePrompt    && { negative_prompt: negativePrompt }),
+            ...(guidanceScale     && { guidance_scale: guidanceScale }),
+            ...(strength          && { strength }),
+            ...(promptUpsampling !== undefined && { prompt_upsampling: promptUpsampling }),
+            ...(safetyTolerance   && { safety_tolerance: safetyTolerance }),
+            ...(webhookUrl        && { webhook_url: webhookUrl }),
+            ...(webhookSecret     && { webhook_secret: webhookSecret }),
         };
-        if (seed) {
-            payload.seed = seed;
+
+        if (chosenModelKey.startsWith('flux-kontext')) {
+            payload.aspect_ratio  = aspectRatio || "1:1";
+            payload.output_format = outputFormat || "jpeg";
+        } else {
+            payload.image_size    = imageSize   || DEFAULT_IMAGE_SIZE;
+            payload.output_format = outputFormat || "jpeg";
         }
+
+        payload.num_images = 1;
 
         await logToFirebase(`Envoi de la requête à Flux (${chosenModelKey}) avec le prompt optimisé: ${optimizedPrompt}`);
 
-        // Envoie la requête à l'API Flux via l'endpoint du modèle choisi
         const fluxResponse = await axios.post(chosenModel.endpoint, payload, {
             headers: {
                 'Content-Type': 'application/json',
