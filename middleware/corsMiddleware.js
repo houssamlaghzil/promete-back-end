@@ -1,13 +1,11 @@
 import cors from 'cors';
 
 const allowedOrigins = [
-    'http://localhost:3000',
-    'https://www.xn--mon-projet-numrique-ozb.fr',
-    'https://toulouse-adventure.promete-it.fr',
-    'https://api.promete-it.fr',
-    'https://testnull-edcb5.web.app',
-    'https://www.testnull-edcb5.web.app',
-    'https://cinoji.web.app',
+    'https://www.xn--mon-projet-numrique-ozb.fr', // Nouvelle URL
+    'https://xn--mon-projet-numrique-ozb.fr', // Nouvelle URL
+    'https://mon-projet-numérique.fr', // Nouvelle URL
+    'https://promete-it.fr', // Ancienne URL (si nécessaire)
+    'https://cinoji.web.app', // Ancienne URL (si nécessaire)
 ];
 
 const corsOptions = {
