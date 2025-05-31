@@ -5,7 +5,7 @@ const allowedOrigins = [
     'https://xn--mon-projet-numrique-ozb.fr', // Nouvelle URL
     'https://mon-projet-numérique.fr', // Nouvelle URL
     'https://promete-it.fr', // Ancienne URL (si nécessaire)
-    'https://cinoji.web.app', // Ancienne URL (si nécessaire)
+    'https://cinoji.web.app',
 ];
 
 const corsOptions = {
